@@ -3,12 +3,14 @@ import * as Tone from 'tone';
 import { $, fmt, ls, toast } from '../../lib/dom';
 import { dbAll } from '../../lib/db';
 import { baseBpm, round1 } from '../../lib/tempo';
-import { AudioEngine, GrainEngine, PlayerEngine, bufferBytes, type Engine, type EngineId } from './engines';
+import { AudioEngine, GrainEngine, PlayerEngine, StretchEngine, bufferBytes, type Engine, type EngineId } from './engines';
+import { StreamStretchEngine, indexMp3 } from './stream';
 
 /** Por encima de esto no se decodifica: un AudioBuffer así puede hacer que iOS cierre la página */
-const RAM_LIMIT = 400e6;
+const RAM_LIMIT = 450e6;
 
 const NOTES: Record<EngineId, string> = {
+  stretch: 'Signalsmith Stretch en un AudioWorklet (hilo de audio). BPM y seek son mensajes al mismo nodo: nada se recrea. Conserva el tono. Los MP3 se cargan por tramos: sirve para mixes completos. Prueba "BPM al soltar" apagado.',
   audio: 'El de la app. Tono conservado por Safari/Chrome (buena calidad). Lee el archivo en streaming: casi no usa RAM.',
   grain: 'Conserva el tono con granos. Prueba granos de 0.08–0.15 s y overlap ~la mitad. Más lookAhead = menos cortes, más retraso al tocar.',
   player: 'Seek y BPM muy suaves, pero el tono sube y baja con la velocidad ("Mantener tono" no aplica).',
@@ -75,7 +77,11 @@ el.unlock.addEventListener('click', () => {
   const keep = engine ? { pos: engine.position(), playing: engine.playing } : null;
   if (ctxKey !== wantKey()) {
     if (engine && engine.id !== 'audio') { engine.dispose(); engine = null; } // sus nodos son del contexto viejo
-    Tone.setContext(new Tone.Context({ latencyHint: el.latency.value as AudioContextLatencyCategory, lookAhead: +el.lookAhead.value }), true);
+    // Contexto nativo (no el envoltorio de Tone) para que el AudioWorklet de Signalsmith también lo pueda usar
+    const raw = new AudioContext({ latencyHint: el.latency.value as AudioContextLatencyCategory });
+    const c = new Tone.Context(raw as any);
+    c.lookAhead = +el.lookAhead.value;
+    Tone.setContext(c, true);
     ctxKey = wantKey();
   }
   const session = (navigator as any).audioSession;
@@ -88,6 +94,8 @@ el.unlock.addEventListener('click', () => {
 el.latency.addEventListener('change', paintUnlock);
 el.lookAhead.addEventListener('change', paintUnlock);
 
+$<HTMLSelectElement>('stretchPreset').addEventListener('change', (e) => engine?.tune?.('cheaper', (e.target as HTMLSelectElement).value === 'cheaper' ? 1 : 0));
+
 for (const [id, key, out, unit] of [['grainSize', 'grainSize', 'gsOut', 's'], ['overlap', 'overlap', 'ovOut', 's'], ['windowSize', 'windowSize', 'wsOut', 's']] as const) {
   const input = el[id];
   const show = () => ($(out).textContent = `${(+input.value).toFixed(3)} ${unit}`);
@@ -96,27 +104,58 @@ for (const [id, key, out, unit] of [['grainSize', 'grainSize', 'gsOut', 's'], ['
 }
 
 // ---------- Canción ----------
-const probeDuration = (blob: Blob) => new Promise<number>((res) => {
-  const a = new Audio(), url = URL.createObjectURL(blob);
-  const done = (d: number) => { URL.revokeObjectURL(url); a.removeAttribute('src'); a.load(); res(d); };
-  a.preload = 'metadata';
-  a.onloadedmetadata = () => done(isFinite(a.duration) ? a.duration : 0);
-  a.onerror = () => done(0);
-  a.src = url;
-});
+/**
+ * Segundos aproximados sin cargar metadatos (iOS no los da hasta un toque).
+ * MP3: tamaño / bitrate del primer frame. WAV: cabecera. Otros: se asume ~128 kbps (estimación alta).
+ */
+async function estimateSeconds(blob: Blob) {
+  const u = new Uint8Array(await blob.slice(0, 256 * 1024).arrayBuffer());
+  if (u[0] === 0x52 && u[1] === 0x49 && u[8] === 0x57) { // RIFF…WAVE
+    const v = new DataView(u.buffer);
+    return { sec: blob.size / (v.getUint32(28, true) || 176400), mp3: false };
+  }
+  let i = 0;
+  if (u[0] === 0x49 && u[1] === 0x44 && u[2] === 0x33) i = 10 + ((u[6] << 21) | (u[7] << 14) | (u[8] << 7) | u[9]); // saltar ID3
+  const BR1 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], BR2 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+  for (; i < u.length - 4; i++) {
+    if (u[i] !== 0xff || (u[i + 1] & 0xe0) !== 0xe0) continue;
+    const ver = (u[i + 1] >> 3) & 3, layer = (u[i + 1] >> 1) & 3, bri = (u[i + 2] >> 4) & 15;
+    if (ver === 1 || layer !== 1 || bri === 0 || bri === 15) continue;
+    return { sec: (blob.size * 8) / ((ver === 3 ? BR1 : BR2)[bri] * 1000), mp3: true };
+  }
+  return { sec: (blob.size * 8) / 128000, mp3: false };
+}
+
+/** Aviso visible bajo el selector de motor (en amarillo si es un problema) */
+const note = (msg: string, warn = false) => {
+  const n = $('engNote');
+  n.textContent = msg;
+  n.classList.toggle('text-warn', warn);
+  n.classList.toggle('text-muted', !warn);
+};
+/** Si la canción no cabe en RAM, los motores Web Audio prueban con este tramo del inicio */
+const SEGMENT_SEC = 8 * 60;
+let segmentMsg = '';
 
 async function decoded(blob: Blob) {
   if (cache?.blob === blob) return cache.buf;
   cache = null; // se suelta el anterior antes de decodificar el siguiente (no dos en memoria)
-  const dur = await probeDuration(blob);
-  const est = dur * Tone.getContext().sampleRate * 2 * 4;
+  const { sec, mp3 } = await estimateSeconds(blob);
+  const est = sec * Tone.getContext().sampleRate * 2 * 4;
+  let bytes: Blob = blob;
+  segmentMsg = '';
   if (est > RAM_LIMIT) {
-    toast(`Muy larga para Web Audio: ~${(est / 1e6).toFixed(0)} MB de RAM`);
-    $('engNote').textContent = `Esta canción ocuparía ~${(est / 1e6).toFixed(0)} MB descomprimida. Con <audio> no hay ese problema.`;
-    return null;
+    const mb = (est / 1e6).toFixed(0), min = (sec / 60).toFixed(0);
+    if (!mp3) { note(`Dura ~${min} min: completa ocuparía ~${mb} MB de RAM. Este formato no se puede recortar; usa <audio> o un MP3.`, true); return null; }
+    // MP3: se corta por bytes (el decodificador se sincroniza solo con el siguiente frame)
+    bytes = blob.slice(0, Math.floor(blob.size * (SEGMENT_SEC / sec)));
+    segmentMsg = `Mix de ~${min} min (completo serían ~${mb} MB de RAM): se prueba con los primeros ${SEGMENT_SEC / 60} min.`;
   }
   const t0 = performance.now();
-  const buf = await Tone.getContext().decodeAudioData(await blob.arrayBuffer());
+  const buf = await Promise.race([
+    Tone.getContext().decodeAudioData(await bytes.arrayBuffer()),
+    new Promise<never>((_, rej) => setTimeout(() => rej(new Error('el navegador no terminó de decodificar en 30 s')), 30000)),
+  ]);
   decodeMs = performance.now() - t0;
   cache = { blob, buf };
   return buf;
@@ -128,34 +167,42 @@ async function build(keep: { pos: number; playing: boolean } | null = null) {
   engine?.dispose();
   engine = null;
   el.pp.disabled = true;
-  $('engNote').textContent = NOTES[engineId];
+  note(NOTES[engineId]);
   $('grainTune').hidden = engineId !== 'grain';
   $('psTune').hidden = engineId !== 'player-ps';
+  $('stretchTune').hidden = engineId !== 'stretch';
   if (!src) return;
-  if (engineId !== 'audio' && !unlocked) { $('engNote').textContent = 'Toca "Activar audio" para probar Tone.js.'; return; }
+  if (engineId !== 'audio' && !unlocked) { note('Toca "Activar audio" (en Contexto Web Audio, aquí abajo) para usar este motor.', true); return; }
   let e: Engine | null = null;
+  let idx: Awaited<ReturnType<typeof indexMp3>> | undefined;
   try {
     if (engineId === 'audio') {
-      const blob = src.blob;
-      e = await new Promise<Engine>((res, rej) => {
-        const x: AudioEngine = new AudioEngine(blob, () => res(x));
-        setTimeout(() => rej(new Error('No se pudo leer el audio')), 8000);
-      });
+      const ae = new AudioEngine(src.blob); // no se esperan metadatos: en iOS llegan recién con el primer play
+      ae.onError = (m) => note(m, true);
+      e = ae;
+    } else if (engineId === 'stretch' && (idx ??= (note('Indexando MP3…'), await indexMp3(src.blob)))) {
+      // MP3 → por tramos: cualquier duración con poca RAM
+      const raw = Tone.getContext().rawContext as AudioContext;
+      e = await StreamStretchEngine.create(raw, src.blob, idx, (s) => note(s || NOTES.stretch));
+      note(NOTES.stretch);
     } else {
-      $('engNote').textContent = 'Decodificando la canción completa…';
+      note('Decodificando…');
       const buf = await decoded(src.blob);
       if (!buf) return;
-      e = engineId === 'grain'
-        ? new GrainEngine(buf, +el.grainSize.value, +el.overlap.value)
-        : new PlayerEngine(buf, engineId === 'player-ps', +el.windowSize.value);
-      $('engNote').textContent = NOTES[engineId];
+      if (segmentMsg) toast(`Probando con los primeros ${SEGMENT_SEC / 60} min del mix`);
+      e = engineId === 'stretch'
+        ? await StretchEngine.create(Tone.getContext().rawContext as AudioContext, buf)
+        : engineId === 'grain'
+          ? new GrainEngine(buf, +el.grainSize.value, +el.overlap.value)
+          : new PlayerEngine(buf, engineId === 'player-ps', +el.windowSize.value);
+      note(segmentMsg ? `${segmentMsg} ${NOTES[engineId]}` : NOTES[engineId], !!segmentMsg);
     }
-  } catch (err: any) { toast(err?.message || 'Error al cargar'); return; }
+  } catch (err: any) { note(`No se pudo cargar con este motor: ${err?.message || err}`, true); return; }
   if (token !== buildToken) { e.dispose(); return; } // llegó otro cambio mientras cargaba
   engine = e;
   e.setPitchLock(el.lock.checked);
   e.setRate(rate(applied));
-  if (keep.pos) e.seek(Math.min(keep.pos, e.duration - 0.25));
+  if (keep.pos && e.duration) e.seek(Math.min(keep.pos, e.duration - 0.25));
   if (keep.playing) e.play();
   el.pp.disabled = false;
 }

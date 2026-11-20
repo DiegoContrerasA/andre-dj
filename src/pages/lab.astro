@@ -23,12 +23,13 @@ const range = 'w-full accent-white';
       <span class={lbl}>CANCIÓN</span>
       <div class="grid grid-cols-[1fr_auto] gap-2">
         <select id="src" class={sel}><option value="">Cargando decks…</option></select>
-        <label class="btn-dark h-11 cursor-pointer px-3.5 text-sm">Archivo<input type="file" id="file" class="hidden" accept="audio/*,.mp3,.m4a,.wav,.aac,.flac,.ogg" /></label>
+        <label class="btn-dark h-11 cursor-pointer px-3.5 text-sm">Archivo<input type="file" id="file" class="hidden" accept="audio/*,.mp3,.mpeg,.mpga,.m4a,.wav,.ogg,.aac,.flac" /></label>
       </div>
 
       <span class={lbl}>MOTOR</span>
       <div class={seg} id="engines">
         <label><input type="radio" name="eng" value="audio" checked />&lt;audio&gt; (actual)</label>
+        <label><input type="radio" name="eng" value="stretch" />Signalsmith Stretch</label>
         <label><input type="radio" name="eng" value="grain" />Tone.GrainPlayer</label>
         <label><input type="radio" name="eng" value="player" />Tone.Player</label>
         <label><input type="radio" name="eng" value="player-ps" />Player + PitchShift</label>
@@ -65,6 +66,11 @@ const range = 'w-full accent-white';
         <div class={row}><span>Overlap (fundido entre granos)</span><output id="ovOut" class="font-mono"></output></div>
         <input type="range" id="overlap" class={range} min="0.01" max="0.2" step="0.005" value="0.06" />
       </div>
+      <div id="stretchTune" class="grid gap-2" hidden>
+        <label class="grid gap-1 text-xs text-muted">Calidad del stretch
+          <select id="stretchPreset" class={sel}><option value="default">default</option><option value="cheaper">cheaper (menos CPU)</option></select>
+        </label>
+      </div>
       <div id="psTune" class="grid gap-2" hidden>
         <div class={row}><span>Ventana del PitchShift</span><output id="wsOut" class="font-mono"></output></div>
         <input type="range" id="windowSize" class={range} min="0.03" max="0.25" step="0.005" value="0.1" />
@@ -100,6 +106,12 @@ const range = 'w-full accent-white';
       <button id="resetStats" class="btn-dark h-10 text-sm">Reiniciar métricas</button>
     </section>
   </main>
+
+  <!-- Mismo aviso flotante que la app (lo usa toast() de lib/dom) -->
+  <div
+    class="pointer-events-none fixed top-[calc(14px+var(--safe-t))] left-1/2 z-20 -translate-x-1/2 rounded-full border border-line bg-[#1f1f21f0] px-4 py-2.5 text-sm whitespace-nowrap opacity-0 transition-opacity duration-200 data-show:opacity-100"
+    id="toast"
+  ></div>
 
   <script>
     import '../scripts/lab/lab';

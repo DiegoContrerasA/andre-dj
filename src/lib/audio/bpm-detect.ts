@@ -2,10 +2,10 @@
 // Decodifica ~2.5 MB del medio del archivo (≈2.5 min de MP3; no se carga el mix completo en memoria),
 // saca la envolvente de golpes de graves (bombo) y busca la periodicidad con autocorrelación.
 
-const MP3_BR = { 1: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], 2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160] };
-const MP3_SR: Record<number, number[]> = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
+export const MP3_BR = { 1: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], 2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160] };
+export const MP3_SR: Record<number, number[]> = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
 // Largo en bytes del frame MPEG Layer III que empieza en i, o 0 si no es una cabecera válida
-const mp3FrameLen = (u: Uint8Array, i: number) => {
+export const mp3FrameLen = (u: Uint8Array, i: number) => {
   if (i + 4 > u.length || u[i] !== 0xff || (u[i + 1] & 0xe0) !== 0xe0) return 0;
   const ver = (u[i + 1] >> 3) & 3, layer = (u[i + 1] >> 1) & 3;
   const bri = (u[i + 2] >> 4) & 15, sri = (u[i + 2] >> 2) & 3, pad = (u[i + 2] >> 1) & 1;
@@ -14,7 +14,7 @@ const mp3FrameLen = (u: Uint8Array, i: number) => {
   return Math.floor(((ver === 3 ? 144 : 72) * br) / sr) + pad;
 };
 // Primer offset con 3 frames seguidos válidos (evita falsos positivos dentro de los datos)
-const findMp3Sync = (u: Uint8Array, from = 0) => {
+export const findMp3Sync = (u: Uint8Array, from = 0) => {
   for (let i = from; i < u.length - 4; i++) {
     const l1 = mp3FrameLen(u, i); if (!l1) continue;
     const l2 = mp3FrameLen(u, i + l1); if (!l2) continue;
