@@ -5,9 +5,9 @@ import { parseName, tidy } from '../lib/filename';
 import { detectBpm } from '../lib/audio/bpm-detect';
 import { inRange, round1 } from '../lib/tempo';
 import { svg } from '../lib/icons';
-import { allDecks, analyzing, decks, playingDeck, rateOf, state, toggle, type Deck } from './player';
+import { allDecks, analyzing, decks, onSeeked, playingDeck, position, rateOf, resetSeek, seek, setRate, state, toggle, type Deck } from './player';
 import { applyTempo, paintDeck } from './tempo-ui';
-import { syncMediaSession } from './media-session';
+import { syncMediaSession, syncMediaSessionSoon } from './media-session';
 import type { DeckId, Song } from '../lib/types';
 
 const PLAY_ICON = svg('play', 2);
@@ -16,10 +16,14 @@ const label = (d: Deck) => `Deck ${d.id.toUpperCase()}`;
 
 export function setSong(d: Deck, song: Song | null) {
   d.audio.pause();
-  if (d.url) { URL.revokeObjectURL(d.url); d.url = null; }
+  resetSeek(d);
+  // Primero se cambia la fuente y después se libera la URL anterior (el elemento deja de leerla)
+  const oldUrl = d.url;
+  d.url = null;
   d.song = song;
   if (song) { d.url = URL.createObjectURL(song.blob); d.audio.src = d.url; }
   else { d.audio.removeAttribute('src'); d.audio.load(); }
+  if (oldUrl) URL.revokeObjectURL(oldUrl);
   d.f('cur').textContent = '0:00';
   d.f('rem').textContent = '-0:00';
   d.f('prog').style.setProperty('--p', '0%');
@@ -72,32 +76,52 @@ function setupDeck(d: Deck) {
     d.f('pp').innerHTML = audio.paused ? PLAY_ICON : PAUSE_ICON;
   };
   const live = () => document.body.classList.toggle('live', !!playingDeck());
-  audio.addEventListener('play', () => { state.lastActive = d; sync(); live(); syncMediaSession(); });
-  audio.addEventListener('pause', () => { sync(); live(); syncMediaSession(); });
+  audio.addEventListener('play', () => { state.lastActive = d; sync(); live(); syncMediaSession(); loop(); });
+  audio.addEventListener('pause', () => { sync(); live(); syncMediaSession(); tick(); });
   audio.addEventListener('ended', sync);
-  audio.addEventListener('loadedmetadata', () => { audio.playbackRate = rateOf(d); tick(); });
+  audio.addEventListener('loadedmetadata', () => { setRate(d, rateOf(d)); tick(); });
+  audio.addEventListener('seeked', () => { if (onSeeked(d)) { tick(); syncMediaSessionSoon(); } });
 
   // Tiempo y barra de progreso
-  const prog = d.f('prog');
-  let scrubbing = false;
+  const prog = d.f('prog'), cur = d.f('cur'), rem = d.f('rem');
+  let scrubbing = false, scrubP = 0, lastCur = '', lastRem = '';
+  const paint = (t: number, dur: number) => {
+    const c = fmt(t), r = `-${fmt((dur || 0) - t)}`;
+    if (c !== lastCur) cur.textContent = lastCur = c; // el texto cambia una vez por segundo
+    if (r !== lastRem) rem.textContent = lastRem = r;
+  };
   const tick = () => {
     const dur = audio.duration;
-    d.f('cur').textContent = fmt(audio.currentTime);
-    d.f('rem').textContent = `-${fmt((dur || 0) - audio.currentTime)}`;
-    if (!scrubbing) prog.style.setProperty('--p', dur ? `${(audio.currentTime / dur) * 100}%` : '0%');
+    if (scrubbing) { paint(scrubP * dur, dur); return; } // mientras se arrastra, se muestra el tiempo bajo el dedo
+    const t = position(d);
+    paint(t, dur);
+    prog.style.setProperty('--p', dur ? `${(t / dur) * 100}%` : '0%');
   };
-  audio.addEventListener('timeupdate', tick);
+  // timeupdate llega ~4 veces por segundo en Safari: la barra avanza a saltos. Mientras suena se pinta en cada cuadro.
+  let raf = 0;
+  const loop = () => {
+    cancelAnimationFrame(raf);
+    const step = () => { tick(); if (!audio.paused) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+  };
+  audio.addEventListener('timeupdate', () => { if (audio.paused || document.hidden) tick(); });
 
-  // Tocar o arrastrar la barra para moverse
+  // Tocar o arrastrar la barra para moverse. El seek se hace al soltar, sin pausar.
   const at = (e: PointerEvent) => { const r = prog.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+  const scrubTo = (p: number) => { scrubP = p; prog.style.setProperty('--p', `${p * 100}%`); tick(); };
   prog.addEventListener('pointerdown', (e) => {
     if (!audio.duration) return;
     scrubbing = true;
     prog.setPointerCapture(e.pointerId);
-    prog.style.setProperty('--p', `${at(e) * 100}%`);
+    scrubTo(at(e));
   });
-  prog.addEventListener('pointermove', (e) => { if (scrubbing) prog.style.setProperty('--p', `${at(e) * 100}%`); });
-  prog.addEventListener('pointerup', (e) => { if (!scrubbing) return; scrubbing = false; audio.currentTime = at(e) * audio.duration; });
+  prog.addEventListener('pointermove', (e) => { if (scrubbing) scrubTo(at(e)); });
+  prog.addEventListener('pointerup', (e) => {
+    if (!scrubbing) return;
+    scrubbing = false;
+    seek(d, at(e) * audio.duration); // seekTarget fija la barra en el destino hasta que llega seeked
+    tick();
+  });
   prog.addEventListener('pointercancel', () => { scrubbing = false; tick(); });
 
   // Adelantar / retroceder 10 s: botones y doble toque a la izquierda/derecha de la tarjeta
@@ -105,7 +129,7 @@ function setupDeck(d: Deck) {
   let fxTimer: number | undefined, fxSum = 0, fxDir = 0;
   const skip = (secs: number) => {
     if (!d.song || !audio.duration) return;
-    audio.currentTime = Math.min(audio.duration - 0.25, Math.max(0, audio.currentTime + secs));
+    seek(d, position(d) + secs); // desde el destino pendiente: 3 toques rápidos = +30 s exactos
     tick();
     fxSum = Math.sign(secs) === fxDir ? fxSum + secs : secs;
     fxDir = Math.sign(secs);

@@ -1,20 +1,60 @@
 ---
-// Hojas pequeñas: confirmar fin de sesión e instrucciones de instalación en iOS
+// Hojas pequeñas: confirmar fin de sesión e instrucciones de instalación en iOS.
+// Mismo lenguaje visual que Ajustes: asa, cabecera con ✕ y filas agrupadas en tarjeta.
 import Sheet from './Sheet.astro';
+
+const head = 'flex touch-none items-center justify-between';
+const close = 'btn-dark size-[34px] rounded-full text-sm';
+const group = 'overflow-hidden rounded-[18px] border border-line bg-white/[.03]';
+const row = 'flex w-full items-center gap-3 p-3.5 text-left [&+&]:border-t [&+&]:border-line';
+const ico = 'grid size-9 flex-none place-items-center rounded-[10px] bg-white/[.06] text-[17px]';
+const txt = 'min-w-0 flex-1 [&_b]:block [&_b]:truncate [&_b]:text-[15px] [&_small]:mt-0.5 [&_small]:block [&_small]:text-xs [&_small]:leading-[1.35] [&_small]:text-muted';
 ---
-<Sheet id="modal">
-  <b>¿Terminar sesión?</b>
-  <p class="mb-2 leading-normal text-muted">Se borrarán del dispositivo las canciones cargadas en los dos decks.</p>
-  <button class="btn bg-b text-white" id="confirmEnd">Sí, borrar todo</button>
-  <button class="btn bg-white/10" id="cancelEnd">Cancelar</button>
+<Sheet id="modal" grab class="gap-3.5">
+  <div class={head}>
+    <b class="text-xl">¿Terminar sesión?</b>
+    <button class={close} data-close aria-label="Cerrar">✕</button>
+  </div>
+
+  <div class={group}>
+    {(['a', 'b'] as const).map((id) => (
+      <div class={row} data-end-deck={id}>
+        <span class={`${ico} font-mono text-sm font-bold ${id === 'a' ? 'text-a' : 'text-b'}`}>{id.toUpperCase()}</span>
+        <span class={txt}><b data-end-title>Sin canción</b><small data-end-sub>Deck {id.toUpperCase()}</small></span>
+      </div>
+    ))}
+    <div class={row}>
+      <span class={ico}>🗑️</span>
+      <span class={txt}><b>Se borra todo del celular</b><small>Las canciones y el BPM guardado. No se puede deshacer.</small></span>
+    </div>
+  </div>
+
+  <div class="grid gap-2.5">
+    <button class="btn border border-[#ff3d9a55] bg-[#ff3d9a26] text-b active:bg-[#ff3d9a3a]" id="confirmEnd">Sí, borrar todo</button>
+    <button class="btn bg-white/[.06] active:bg-white/10" id="cancelEnd">Cancelar</button>
+  </div>
 </Sheet>
 
-<Sheet id="iosModal">
-  <b>Instalar Andre's DJ</b>
-  <ol class="list-decimal pl-5 leading-[1.8] text-muted [&_b]:text-ink">
-    <li>Toca <b>Compartir</b> <span aria-hidden="true">⬆︎</span> en la barra de Safari</li>
-    <li>Elige <b>Agregar a pantalla de inicio</b></li>
-    <li>Toca <b>Agregar</b></li>
-  </ol>
-  <button class="btn bg-white/10" id="iosClose">Entendido</button>
+<Sheet id="iosModal" grab class="gap-3.5">
+  <div class={head}>
+    <b class="text-xl">Instalar Andre's DJ</b>
+    <button class={close} data-close aria-label="Cerrar">✕</button>
+  </div>
+
+  <div class={group}>
+    <div class={row}>
+      <span class={ico}>⬆︎</span>
+      <span class={txt}><b>1. Toca Compartir</b><small>En la barra de Safari</small></span>
+    </div>
+    <div class={row}>
+      <span class={ico}>＋</span>
+      <span class={txt}><b>2. Agregar a pantalla de inicio</b><small>Baja en la lista hasta encontrarlo</small></span>
+    </div>
+    <div class={row}>
+      <span class={ico}>✓</span>
+      <span class={txt}><b>3. Toca Agregar</b><small>Ábrela desde el ícono, a pantalla completa</small></span>
+    </div>
+  </div>
+
+  <button class="btn bg-white text-black" id="iosClose">Entendido</button>
 </Sheet>

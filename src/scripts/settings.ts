@@ -36,7 +36,14 @@ function setupWakeLock() {
 }
 
 function setupEndSession() {
-  $('end').onclick = () => { closeSheet('settings'); setTimeout(() => openSheet('modal'), 180); };
+  // La confirmación muestra qué se va a borrar de cada deck
+  const fill = () => allDecks().forEach((d) => {
+    const row = document.querySelector<HTMLElement>(`[data-end-deck="${d.id}"]`)!;
+    row.querySelector('[data-end-title]')!.textContent = d.song?.title ?? 'Sin canción';
+    row.querySelector('[data-end-sub]')!.textContent = d.song ? d.song.artist || 'Sin artista' : `Deck ${d.id.toUpperCase()} vacío`;
+    row.classList.toggle('opacity-50', !d.song);
+  });
+  $('end').onclick = () => { fill(); closeSheet('settings'); setTimeout(() => openSheet('modal'), 180); };
   $('cancelEnd').onclick = () => closeSheet('modal');
   $('confirmEnd').onclick = async () => {
     await dbClear();

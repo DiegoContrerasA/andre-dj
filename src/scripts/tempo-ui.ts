@@ -1,8 +1,8 @@
 // BPM maestro: aplica la velocidad a los decks y pinta fader, marcas A/B y botones de volver
 import { $, ls, toast, vibrate } from '../lib/dom';
 import { baseBpm, clampBpm, inRange, posPct, round1 } from '../lib/tempo';
-import { allDecks, analyzing, currentDeck, decks, rateOf, state, type Deck } from './player';
-import { syncMediaSession } from './media-session';
+import { allDecks, analyzing, currentDeck, decks, rateOf, setRate, state, type Deck } from './player';
+import { syncMediaSessionSoon } from './media-session';
 import type { DeckId } from '../lib/types';
 
 const fader = $<HTMLInputElement>('fader');
@@ -54,22 +54,28 @@ function paintGuide() {
   document.querySelector('[data-mark="b"]')!.classList.toggle('near', near);
 }
 
+let saveTimer: number | undefined;
+const spinOf = new WeakMap<Deck, string>();
+
 export function applyTempo() {
   const withBpm = allDecks().find((d) => d.song?.bpm);
   if (state.shared == null) state.shared = withBpm ? baseBpm(withBpm.song!.bpm!) : 128;
   const shared = (state.shared = round1(clampBpm(state.shared)));
   fader.disabled = false;
   fader.value = String(shared);
-  ls.set('sharedBpm', shared);
+  // Guardar en localStorage es síncrono: se espera a que el fader se detenga
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => ls.set('sharedBpm', state.shared), 400);
   $('bpmOut').textContent = shared.toFixed(1);
   paintGuide();
   for (const d of allDecks()) {
     const r = rateOf(d);
-    d.audio.playbackRate = r;
-    d.el.style.setProperty('--spin', `${(1.8 / r).toFixed(3)}s`);
+    setRate(d, r);
+    const spin = `${(1.8 / r).toFixed(2)}s`;
+    if (spinOf.get(d) !== spin) { spinOf.set(d, spin); d.el.style.setProperty('--spin', spin); }
     paintDeck(d);
   }
-  syncMediaSession();
+  syncMediaSessionSoon(); // la pantalla bloqueada se actualiza al soltar, no en cada paso del fader
 }
 
 export const setShared = (bpm: number) => { state.shared = bpm; applyTempo(); };
@@ -95,7 +101,11 @@ const snap = (bpm: number) => {
 };
 
 export function setupMasterControls() {
-  fader.addEventListener('input', () => setShared(snap(+fader.value)));
+  // Un cambio de velocidad por cuadro como máximo, aunque el navegador mande más eventos input
+  let raf = 0;
+  fader.addEventListener('input', () => {
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; setShared(snap(+fader.value)); });
+  });
 
   // Botones − / +: un toque mueve 0.5; mantener presionado repite
   const nudge = (dir: number) => setShared((state.shared ?? 128) + dir * 0.5);
