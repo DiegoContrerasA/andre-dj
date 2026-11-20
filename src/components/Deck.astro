@@ -1,0 +1,57 @@
+---
+import Icon from './Icon.astro';
+
+interface Props { id: 'a' | 'b' }
+const { id } = Astro.props;
+const label = id.toUpperCase();
+const AUDIO_TYPES = 'audio/*,.mp3,.mpeg,.m4a,.wav,.ogg,.aac,.flac';
+const skipBtn = 'btn-dark inline-flex group-[.empty]:opacity-40 h-12 gap-1.5 px-4 text-sm narrow:h-11 short:h-10 tiny:h-9 [&_svg]:size-[18px]';
+---
+<!-- Los elementos con data-f los busca el script del deck (scripts/decks.ts) -->
+<div class="deck group short:gap-1.5 short:px-3.5 short:py-3 narrow:p-3.5 empty" id={`deck-${id}`} data-deck={id}>
+  <div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 narrow:gap-3.5">
+    <button
+      class="disc relative grid aspect-square w-[76px] flex-none place-items-center rounded-full narrow:w-[68px] xnarrow:w-14 short:w-[62px] tiny:w-12"
+      data-act="toggle" disabled aria-label={`Play/pausa deck ${label}`}
+    >
+      <span class="vinyl"></span>
+      <span class="pp" data-f="pp"><Icon name="play" class="" strokeWidth={2} /></span>
+    </button>
+
+    <div class="grid min-w-0 gap-1 short:gap-0.5">
+      <div class="flex min-w-0 items-baseline justify-between gap-2">
+        <span class="flex-none font-mono text-xs tracking-[3px] text-(--c) xnarrow:tracking-[2px]">DECK {label}</span>
+        <span class="font-mono text-xs whitespace-nowrap text-muted [&_b]:font-medium [&_b]:text-ink" data-f="bpmtag">— bpm</span>
+      </div>
+      <div class="min-w-0">
+        <b class="block truncate text-[17px] font-semibold tracking-[-0.2px] short:text-[15px]" data-f="title">Sin canción</b>
+        <small class="mt-[3px] block truncate text-sm text-muted short:mt-px short:text-xs tiny:hidden" data-f="artist">Carga un archivo</small>
+      </div>
+      <!-- data-level: ok / mid / bad según cuánto se estira el tempo -->
+      <span class="group/shift inline-flex min-h-3.5 items-center gap-1.5 font-mono text-[11px] whitespace-nowrap text-muted tiny:hidden" data-f="shift">
+        <i class="size-[5px] rounded-full bg-dim group-data-[level=ok]/shift:bg-a group-data-[level=mid]/shift:bg-warn group-data-[level=bad]/shift:bg-b"></i><span>—</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="prog relative grid h-[18px] cursor-pointer touch-none items-center short:h-3.5 tiny:h-2.5" data-f="prog"><i></i></div>
+  <div class="-mt-1 flex items-center justify-between font-mono text-xs text-muted tabular-nums short:-mt-0.5 short:text-[11px]">
+    <span data-f="cur">0:00</span><span data-f="rem">-0:00</span>
+  </div>
+
+  <span
+    class="seek-fx pointer-events-none absolute top-1/2 z-2 rounded-full bg-black/80 px-3.5 py-2 font-mono text-[13px] text-white data-[side=l]:left-1/4 data-[side=r]:left-3/4"
+    data-f="fx" aria-hidden="true"
+  ></span>
+
+  <div class="mt-1 flex min-w-0 items-center gap-2 short:mt-0 xnarrow:gap-1.5">
+    <button class={skipBtn} data-skip="-10" aria-label="Retroceder 10 segundos"><Icon name="back" />10</button>
+    <button class={skipBtn} data-skip="10" aria-label="Adelantar 10 segundos">10<Icon name="forward" /></button>
+    <label class="btn-dark ml-auto size-12 cursor-pointer narrow:size-11 short:size-10 tiny:size-9" title="Cargar canción" aria-label="Cargar canción">
+      <input type="file" class="hidden" data-f="file" accept={AUDIO_TYPES} />
+      <Icon name="upload" class="size-5" />
+    </label>
+  </div>
+
+  <audio data-f="audio" preload="auto" playsinline></audio>
+</div>

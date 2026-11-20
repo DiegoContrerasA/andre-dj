@@ -1,0 +1,18 @@
+---
+import Icon from './Icon.astro';
+---
+<header class="flex items-center gap-3.5 px-0.5 pt-0.5 short:pt-0">
+  <h1 class="m-0 flex-1 text-[22px] font-bold tracking-[-0.4px] short:text-[19px] tiny:text-[17px]">
+    Andre's <span class="font-semibold text-muted">DJ</span>
+  </h1>
+
+  <!-- "LIVE" se enciende cuando algún deck suena (body.live) -->
+  <span class="inline-flex items-center gap-2 font-mono text-xs tracking-[2px] text-muted group-[.live]/body:text-[#cfcfd4]" aria-live="polite">
+    <i class="size-[7px] rounded-full bg-dim transition-[background,box-shadow] duration-300 group-[.live]/body:animate-pulse-dot group-[.live]/body:bg-a group-[.live]/body:shadow-[0_0_8px_var(--color-a)]"></i>LIVE
+  </span>
+
+  <button class="btn-dark relative size-[38px] short:size-[34px] tiny:size-[30px]" id="openSettings" aria-label="Ajustes">
+    <Icon name="settings" />
+    <i class="absolute top-1.5 right-1.5 size-[7px] rounded-full bg-a" id="settingsDot" hidden></i>
+  </button>
+</header>

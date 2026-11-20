@@ -1,0 +1,183 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+
+/* ---------- Tokens ---------- */
+@theme {
+  --color-bg: #0a0a0b;
+  --color-card: #141416;
+  --color-sheet: #161617;
+  --color-line: #ffffff12;
+  --color-ink: #f4f4f5;
+  --color-muted: #8b8b93;
+  --color-dim: #3a3a40;
+  --color-btn: #1c1c1f;
+  --color-btn-active: #26262a;
+  --color-a: #7ee8b2;
+  --color-b: #f06aa8;
+  --color-warn: #f2c35b;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1); /* curva de las hojas de iOS (igual que Vaul) */
+
+  --animate-pulse-dot: pulse-dot 1.6s ease-in-out infinite;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-fade: fade 0.35s ease;
+  --animate-tilt: tilt 1.6s ease-in-out infinite;
+
+  @keyframes pulse-dot { 50% { opacity: 0.45; } }
+  @keyframes float { 50% { transform: translateY(-6px); } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes tilt { 0%, 30% { transform: rotate(90deg); } 60%, 100% { transform: rotate(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+}
+
+/* Breakpoints propios: pantallas bajitas y celulares angostos */
+@custom-variant short (@media (max-height: 740px));
+@custom-variant tiny (@media (max-height: 600px));
+@custom-variant narrow (@media (max-width: 380px));
+@custom-variant xnarrow (@media (max-width: 340px));
+@custom-variant landscape-phone (@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse));
+
+/* ---------- Base ---------- */
+@layer base {
+  :root {
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { @apply min-h-full bg-bg font-sans text-ink; overscroll-behavior: none; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+}
+
+/* ---------- Componentes con estado o pseudo-elementos ---------- */
+@layer components {
+  /* Botón cuadrado oscuro (skip, cargar, nudge, ajustes) */
+  .btn-dark { @apply grid flex-none place-items-center rounded-xl bg-btn text-ink active:bg-btn-active; }
+
+  /* Deck: --c es el color de acento (A verde, B rosa) */
+  .deck {
+    --c: var(--color-a);
+    @apply relative grid content-center gap-2.5 self-stretch rounded-[22px] border border-line bg-card p-4 select-none transition-[border-color,box-shadow] duration-300;
+    touch-action: manipulation; /* sin zoom ni selección al hacer doble toque */
+  }
+  .deck[data-deck='b'] { --c: var(--color-b); }
+  .deck::before {
+    content: ''; position: absolute; top: -1px; left: 6%; right: 6%; height: 1px;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c) 75%, transparent), transparent);
+  }
+  .deck.playing {
+    border-color: color-mix(in srgb, var(--c) 30%, var(--color-line));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 10%, transparent), 0 18px 50px -20px color-mix(in srgb, var(--c) 35%, transparent);
+  }
+
+  /* Vinilo girando */
+  .vinyl {
+    position: absolute; inset: 0; border-radius: 50%;
+    background:
+      radial-gradient(circle, #0b0b0c 0 4%, var(--c) 5% 23%, transparent 23.5%),
+      repeating-radial-gradient(circle, #19191c 0 1.5px, #0e0e10 1.5px 3px);
+    box-shadow: 0 0 0 1px #000, 0 0 22px -2px color-mix(in srgb, var(--c) 45%, transparent);
+    animation: spin var(--spin, 1.8s) linear infinite paused; transition: box-shadow 0.3s;
+  }
+  .vinyl::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 30deg, #fff0, #ffffff10 6%, #fff0 14% 50%, #ffffff0a 56%, #fff0 64%);
+  }
+  .deck.playing .vinyl { animation-play-state: running; box-shadow: 0 0 0 1px #000, 0 0 30px 0 color-mix(in srgb, var(--c) 60%, transparent); }
+  .deck.empty .vinyl { filter: saturate(0.8); }
+
+  /* Botón play/pausa en el centro del disco */
+  .pp {
+    @apply relative z-1 grid aspect-square w-2/5 place-items-center rounded-full text-[#0b0b0c] transition-[transform,background] duration-200;
+    background: color-mix(in srgb, var(--c) 85%, #000);
+    box-shadow: 0 2px 10px #0009, 0 0 0 3px #0b0b0c;
+  }
+  .pp svg { width: 50%; height: 50%; }
+  .deck.playing .pp { background: var(--c); }
+  .disc:disabled { cursor: default; }
+  .disc:disabled .pp { background: color-mix(in srgb, var(--c) 35%, #1a1a1d); }
+  .disc:active:not(:disabled) .pp { transform: scale(0.9); }
+
+  /* Barra de progreso (--p = porcentaje) */
+  .prog i {
+    display: block; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--c) 70%, transparent) var(--p, 0%), #ffffff14 var(--p, 0%));
+  }
+  .prog::after {
+    content: ''; position: absolute; top: 50%; left: var(--p, 0%); width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; transform: translate(-50%, -50%); box-shadow: 0 1px 4px #0008;
+  }
+  .deck.empty .prog::after { background: #d6d6da; }
+
+  /* Feedback del doble toque (estilo YouTube) */
+  .seek-fx { opacity: 0; transform: translate(-50%, -50%) scale(0.9); transition: opacity 0.25s, transform 0.25s; }
+  .seek-fx.show { opacity: 1; transform: translate(-50%, -50%) scale(1); transition: none; }
+
+  /* Fader del BPM maestro */
+  .fader { @apply m-0 h-11 w-full appearance-none bg-transparent short:h-[38px] tiny:h-8; touch-action: pan-y; }
+  .fader::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--color-a), #9b9ba3 50%, var(--color-b)); opacity: 0.9; }
+  .fader::-moz-range-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--color-a), #9b9ba3 50%, var(--color-b)); }
+  .fader::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 26px; height: 40px; margin-top: -18.5px; border-radius: 7px;
+    background: linear-gradient(180deg, #e4e4e7 0 47%, #18181b 47% 53%, #e4e4e7 53%); box-shadow: 0 4px 12px #000a;
+  }
+  .fader::-moz-range-thumb { width: 26px; height: 40px; border-radius: 7px; border: 0; background: linear-gradient(180deg, #e4e4e7 0 47%, #18181b 47% 53%, #e4e4e7 53%); }
+
+  /* Marcas A/B sobre el fader */
+  .mark { --c: var(--color-a); }
+  .mark[data-mark='b'] { --c: var(--color-b); }
+  .mark::after { content: ''; position: absolute; left: -0.5px; top: 15px; bottom: 6px; width: 1px; background: var(--c); }
+  .mark.near em { top: -12px; }
+
+  /* Botones "volver al original" */
+  .reset {
+    --c: var(--color-a);
+    @apply inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl font-mono text-[13px] tracking-[1px] transition-colors duration-200 short:h-[38px] tiny:h-8 xnarrow:gap-[5px] xnarrow:text-xs;
+    background: color-mix(in srgb, var(--c) 7%, #131315);
+    color: color-mix(in srgb, var(--c) 75%, #fff);
+  }
+  .reset[data-reset='b'] { --c: var(--color-b); }
+  .reset.on { background: color-mix(in srgb, var(--c) 20%, #131315); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+  .reset:disabled { color: color-mix(in srgb, var(--c) 35%, #555); cursor: default; }
+
+  /* Interruptor estilo iOS */
+  .switch {
+    @apply relative m-0 h-8 w-[52px] flex-none cursor-pointer appearance-none rounded-full bg-white/15 transition-colors duration-200 checked:bg-white;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 6px #0007; transition: transform 0.2s;
+  }
+  .switch:checked::after { transform: translateX(20px); background: #111; }
+
+  .btn { @apply rounded-[14px] p-3.5 text-base font-bold; }
+
+  /* ---------- Bottom sheets con sensación nativa ---------- */
+  .modal {
+    position: fixed; inset: 0; z-index: 10; display: flex; align-items: flex-end;
+    visibility: hidden; pointer-events: none; transition: visibility 0s linear 0.5s;
+  }
+  .modal::before { content: ''; position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity 0.5s var(--ease-ios); }
+  .modal.show { visibility: visible; pointer-events: auto; transition: none; }
+  .modal.show::before { opacity: calc(0.6 * var(--fade, 1)); }
+  .modal.dragging::before { transition: none; }
+  .sheet {
+    @apply relative mx-auto grid w-full max-w-[560px] gap-2.5 rounded-t-[26px] border border-b-0 border-line bg-sheet px-4 pt-5 pb-[calc(20px+var(--safe-b))] shadow-[0_-10px_40px_#0008];
+    transform: translate3d(0, 100%, 0); transition: transform 0.5s var(--ease-ios); will-change: transform; touch-action: none;
+  }
+  .sheet::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 100vh; background: var(--color-sheet); } /* fondo al estirar hacia arriba */
+  .modal.show .sheet { transform: translate3d(0, var(--drag, 0px), 0); }
+  .modal.dragging .sheet { transition: none; }
+  .modal:not(.has-grab) .sheet::before { content: ''; width: 40px; height: 5px; border-radius: 5px; background: #ffffff33; margin: -8px auto 2px; }
+
+  /* La app de fondo se achica como en iOS */
+  .app { transition: transform 0.5s var(--ease-ios), filter 0.5s var(--ease-ios), border-radius 0.5s var(--ease-ios); }
+  body.sheet-open .app {
+    transform: scale(calc(1 - 0.06 * var(--fade, 1))) translateY(calc(10px * var(--fade, 1)));
+    filter: brightness(calc(1 - 0.35 * var(--fade, 1))); border-radius: 22px; overflow: hidden;
+  }
+  body.sheet-dragging .app { transition: none; }
+}

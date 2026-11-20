@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
 
 // Al compilar, escribe en dist/sw.js la lista real de archivos (incluye /_astro/*.js y *.css con hash)
 // y una versión de caché que cambia con el contenido, para que la app instalada funcione sin internet.
@@ -35,4 +36,7 @@ const precache = () => ({
   },
 });
 
-export default defineConfig({ integrations: [precache()] });
+export default defineConfig({
+  integrations: [precache()],
+  vite: { plugins: [tailwindcss()] },
+});

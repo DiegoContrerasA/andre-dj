@@ -1,0 +1,11 @@
+---
+// Hoja inferior (bottom sheet). La apertura/cierre y el arrastre viven en scripts/sheets.ts.
+interface Props { id: string; grab?: boolean; class?: string }
+const { id, grab = false, class: cls = '' } = Astro.props;
+---
+<div class:list={['modal', { 'has-grab': grab }]} id={id}>
+  <div class:list={['sheet', cls]}>
+    {grab && <div class="-mt-2 mx-auto h-[5px] w-10 touch-none rounded-[5px] bg-white/20"></div>}
+    <slot />
+  </div>
+</div>

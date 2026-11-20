@@ -1,0 +1,33 @@
+---
+// Bienvenida (primera vez) y guía "Cómo funciona"
+const STEPS = [
+  { icon: '⤒', title: 'Carga una canción en cada deck', text: 'Deck A arriba, deck B abajo. El BPM se detecta solo.' },
+  { icon: '⇆', title: 'Mueve el BPM del centro', text: 'Los dos decks siguen ese BPM. Las marcas A y B muestran el tempo original.' },
+  { icon: '▶', title: 'Toca el disco para dar play', text: 'Al darle play a uno, el otro se pausa. Doble toque a los lados de un deck salta ±10 s.' },
+];
+---
+<div
+  class="fixed inset-0 z-30 grid animate-fade place-items-center overflow-y-auto bg-[#0b0b0cee] px-[22px] pt-[calc(20px+var(--safe-t))] pb-[calc(20px+var(--safe-b))] backdrop-blur-xl"
+  id="welcome" hidden
+>
+  <div class="grid w-full max-w-[400px] justify-items-center gap-3.5 text-center">
+    <img class="size-[104px] animate-float rounded-[26px] shadow-[0_0_0_1px_var(--color-line),0_20px_50px_#000a]" src="/icon-512.png" alt="" />
+    <h2 class="mt-1 text-[34px] font-black tracking-[-1px]">Andre's <span class="font-bold text-muted">DJ</span></h2>
+    <p class="-mt-2 mb-1.5 text-muted">Dos decks, un solo BPM.</p>
+
+    <ol class="mb-1.5 grid w-full gap-2.5 text-left">
+      {STEPS.map((s) => (
+        <li class="flex items-start gap-3 rounded-2xl border border-line bg-white/[.04] p-3">
+          <i class="grid size-[34px] flex-none place-items-center rounded-[10px] bg-white/[.07] font-extrabold not-italic">{s.icon}</i>
+          <span>
+            <b class="block text-sm">{s.title}</b>
+            <small class="mt-0.5 block text-xs leading-[1.4] text-muted">{s.text}</small>
+          </span>
+        </li>
+      ))}
+    </ol>
+
+    <button class="btn w-full bg-white text-black" id="startApp">Empezar</button>
+    <button class="btn w-full border border-line" data-install hidden>Instalar app</button>
+  </div>
+</div>

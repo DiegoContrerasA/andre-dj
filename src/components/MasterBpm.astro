@@ -1,0 +1,41 @@
+---
+import Icon from './Icon.astro';
+import { MIN_BPM, MAX_BPM } from '../lib/tempo';
+
+const TICKS = [107, 125, 143, 162, 180];
+const nudgeBtn = 'btn-dark size-12 narrow:size-11 short:size-10 tiny:size-9';
+---
+<section class="relative grid gap-1.5 rounded-[22px] border border-line bg-card px-4 pt-4 pb-3.5 short:gap-0.5 short:px-3.5 short:py-3">
+  <div class="flex items-center justify-between gap-2.5">
+    <button class={nudgeBtn} id="minus" aria-label="Bajar BPM"><Icon name="minus" /></button>
+    <div class="flex-1 text-center select-none" id="bigBpm" title="Doble toque: BPM original del deck que suena">
+      <b class="block font-mono text-[56px] leading-none font-bold tracking-[-2px] text-white tabular-nums narrow:text-[50px] xnarrow:text-[42px] short:text-[42px] tiny:text-[34px]" id="bpmOut">—</b>
+      <small class="mt-1.5 block font-mono text-xs tracking-[4px] text-muted short:mt-1 short:text-[11px] tiny:mt-0.5 tiny:text-[10px]">MASTER BPM</small>
+    </div>
+    <button class={nudgeBtn} id="plus" aria-label="Subir BPM"><Icon name="plus" /></button>
+  </div>
+
+  <!-- Marcas: dónde queda el BPM original de cada deck -->
+  <div class="relative pt-[18px] short:pt-3.5">
+    <div class="pointer-events-none absolute inset-y-0 right-[13px] left-[13px]">
+      {(['a', 'b'] as const).map((id) => (
+        <span class="mark absolute top-0 bottom-1.5 w-0 -translate-x-1/2" data-mark={id} hidden>
+          <em class="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[1px] text-(--c) not-italic">{id.toUpperCase()}</em>
+        </span>
+      ))}
+    </div>
+    <input type="range" class="fader" id="fader" min={MIN_BPM} max={MAX_BPM} step="0.1" value="128" aria-label="BPM compartido" />
+  </div>
+
+  <div class="-mt-0.5 flex justify-between font-mono text-xs text-muted tabular-nums short:text-[11px] tiny:hidden">
+    {TICKS.map((t) => <span>{t}</span>)}
+  </div>
+
+  <div class="mt-1.5 flex gap-2.5">
+    {(['a', 'b'] as const).map((id) => (
+      <button class="reset" data-reset={id} disabled aria-label={`Volver al BPM original del deck ${id.toUpperCase()}`}>
+        <Icon name="back" class="size-[15px]" />{id.toUpperCase()} <b class="font-medium tabular-nums">—</b>
+      </button>
+    ))}
+  </div>
+</section>

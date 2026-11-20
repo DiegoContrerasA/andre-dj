@@ -1,0 +1,44 @@
+---
+import Sheet from './Sheet.astro';
+
+const row = 'flex w-full cursor-pointer items-center gap-3 p-3.5 text-left [&+&]:border-t [&+&]:border-line';
+const ico = 'grid size-9 flex-none place-items-center rounded-[10px] bg-white/[.06] text-[17px]';
+const txt = 'min-w-0 flex-1 [&_b]:block [&_b]:text-[15px] [&_small]:mt-0.5 [&_small]:block [&_small]:text-xs [&_small]:leading-[1.35] [&_small]:text-muted';
+const group = 'overflow-hidden rounded-[18px] border border-line bg-white/[.03]';
+---
+<Sheet id="settings" grab class="max-h-[88dvh] gap-3.5 overflow-y-auto overscroll-contain">
+  <div class="flex touch-none items-center justify-between">
+    <b class="text-xl">Ajustes</b>
+    <button class="btn-dark size-[34px] rounded-full text-sm" data-close aria-label="Cerrar">✕</button>
+  </div>
+
+  <button class="flex items-center gap-3 rounded-[18px] border border-line bg-white/5 p-3.5 text-left" data-install hidden>
+    <img class="size-[46px] rounded-xl" src="/icon-192.png" alt="" />
+    <span class={txt}><b>Instalar Andre's DJ</b><small>Ábrela desde tu pantalla de inicio, a pantalla completa</small></span>
+    <em class="rounded-full bg-white px-3 py-2 text-[13px] font-extrabold text-black not-italic">Instalar</em>
+  </button>
+
+  <div class={group}>
+    <label class={row}>
+      <span class={ico}>🎵</span>
+      <span class={txt}><b>Mantener tono</b><small>Al subir el BPM la voz no se pone aguda</small></span>
+      <input type="checkbox" class="switch" id="lock" checked />
+    </label>
+    <label class={row} id="wakeRow" hidden>
+      <span class={ico}>☀️</span>
+      <span class={txt}><b>Pantalla siempre encendida</b><small>Para pinchar sin que el celular se bloquee</small></span>
+      <input type="checkbox" class="switch" id="wake" />
+    </label>
+  </div>
+
+  <div class={group}>
+    <button class={row} id="openGuide">
+      <span class={ico}>💡</span>
+      <span class={txt}><b>Cómo funciona</b><small>Decks, BPM compartido y cómo saltar 10 s</small></span>
+      <span class="text-2xl text-muted">›</span>
+    </button>
+  </div>
+
+  <button class="btn border border-[#ff3d9a55] bg-[#ff3d9a14] text-b" id="end">Terminar sesión</button>
+  <p class="m-0 text-center text-[11px] text-muted">Andre's DJ · las canciones solo se guardan en este celular</p>
+</Sheet>

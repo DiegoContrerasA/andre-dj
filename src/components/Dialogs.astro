@@ -1,0 +1,20 @@
+---
+// Hojas pequeñas: confirmar fin de sesión e instrucciones de instalación en iOS
+import Sheet from './Sheet.astro';
+---
+<Sheet id="modal">
+  <b>¿Terminar sesión?</b>
+  <p class="mb-2 leading-normal text-muted">Se borrarán del dispositivo las canciones cargadas en los dos decks.</p>
+  <button class="btn bg-b text-white" id="confirmEnd">Sí, borrar todo</button>
+  <button class="btn bg-white/10" id="cancelEnd">Cancelar</button>
+</Sheet>
+
+<Sheet id="iosModal">
+  <b>Instalar Andre's DJ</b>
+  <ol class="list-decimal pl-5 leading-[1.8] text-muted [&_b]:text-ink">
+    <li>Toca <b>Compartir</b> <span aria-hidden="true">⬆︎</span> en la barra de Safari</li>
+    <li>Elige <b>Agregar a pantalla de inicio</b></li>
+    <li>Toca <b>Agregar</b></li>
+  </ol>
+  <button class="btn bg-white/10" id="iosClose">Entendido</button>
+</Sheet>
