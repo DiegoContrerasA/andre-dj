@@ -185,8 +185,14 @@ export class GrainEngine implements DeckEngine {
     p.setValueAtTime(pts[0][0], pts[0][1]);
     for (const [v, t] of pts.slice(1)) p.linearRampToValueAtTime(v, t);
   }
+  /**
+   * Tone.GrainPlayer convierte el offset de start()/restart() en ticks de su reloj de granos usando
+   * 1/frecuencia = grainSize/velocidad, así que el punto de arranque queda multiplicado por la velocidad
+   * (a +15 % y 10 s dentro de la ventana arrancaría 1,5 s más adelante). Se compensa dividiendo.
+   */
+  private grainOffset(w: Win, secs: number) { return Math.max(0, secs) / w.src.playbackRate; }
   private startW(w: Win, at: number, songT: number, fade = FADE) {
-    w.src.start(at, Math.max(0, songT - w.start));
+    w.src.start(at, this.grainOffset(w, songT - w.start));
     this.ramp(w.gain, [[0, at], [1, at + fade]]);
   }
   private stopW(w: Win, at: number, fade = FADE) {
@@ -264,7 +270,7 @@ export class GrainEngine implements DeckEngine {
       if (!this.t.on) { this.t.off = t; return; }
       const at = Tone.now();
       this.ramp(cur.gain, [[1, at - FADE], [0, at], [1, at + FADE]]); // baja 15 ms, salta, sube 15 ms
-      cur.src.restart(at, t - cur.start);
+      cur.src.restart(at, this.grainOffset(cur, t - cur.start));
       this.t.start(at, t);
       return;
     }
