@@ -88,6 +88,7 @@
   }
   .deck.playing .vinyl { animation-play-state: running; box-shadow: 0 0 0 1px #000, 0 0 30px 0 color-mix(in srgb, var(--c) 60%, transparent); }
   .deck.empty .vinyl { filter: saturate(0.8); }
+  .deck.loading .pp { animation: var(--animate-pulse-dot); } /* preparando el audio */
 
   /* Botón play/pausa en el centro del disco */
   .pp {

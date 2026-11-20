@@ -1,5 +1,5 @@
 // Controles del sistema (pantalla bloqueada, auriculares, notificación)
-import { state, decks, other, playingDeck, currentDeck, toggle, seek, position } from './player';
+import { state, decks, other, playingDeck, currentDeck, toggle, seek, position, duration, pause, rateOf } from './player';
 
 let lastMeta = '';
 
@@ -22,10 +22,10 @@ export function syncMediaSession() {
       artwork: [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
     });
   }
-  const dur = d.audio.duration;
+  const dur = duration(d);
   if (dur && isFinite(dur)) {
     try {
-      ms.setPositionState({ duration: dur, position: Math.min(position(d), dur), playbackRate: d.audio.playbackRate || 1 });
+      ms.setPositionState({ duration: dur, position: Math.min(position(d), dur), playbackRate: rateOf(d) || 1 });
     } catch {}
   }
 }
@@ -42,8 +42,8 @@ export function setupMediaSession() {
   const cur = () => currentDeck() ?? (decks.a.song ? decks.a : decks.b);
   const switchDeck = () => { const d = cur(); if (d && other(d).song) toggle(other(d)); }; // siguiente/anterior = el otro deck
   const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
-    ['play', () => { const d = cur(); if (d?.audio.paused) toggle(d); }],
-    ['pause', () => playingDeck()?.audio.pause()],
+    ['play', () => { const d = cur(); if (d && !playingDeck()) toggle(d); }],
+    ['pause', () => { const d = playingDeck(); if (d) pause(d); }],
     ['nexttrack', switchDeck],
     ['previoustrack', switchDeck],
     ['seekbackward', (e) => { const d = cur(); if (d) seek(d, position(d) - (e.seekOffset ?? 10)); }],

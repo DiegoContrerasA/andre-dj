@@ -8,10 +8,10 @@ import { openSheet, closeSheet } from './sheets';
 
 function setupPitchLock() {
   const lock = $<HTMLInputElement>('lock');
-  const apply = () => allDecks().forEach(({ audio }) => {
-    audio.preservesPitch = lock.checked;
-    (audio as any).webkitPreservesPitch = lock.checked;
-  });
+  const apply = () => {
+    state.pitchLock = lock.checked;
+    allDecks().forEach((d) => d.engine?.setPitchLock(lock.checked));
+  };
   lock.onchange = apply;
   apply();
 }
