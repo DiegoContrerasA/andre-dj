@@ -618,21 +618,65 @@ import '@fontsource-variable/jetbrains-mono/wght.css';
       // Decodifica ~2 MB del medio del archivo (≈2 min a 128 kbps; no se carga el mix completo en memoria),
       // saca la envolvente de golpes de graves (bombo) y busca la periodicidad con autocorrelación.
       const analyzing = new WeakSet<Song>();
-      const isMp3 = (blob: Blob, name = '') => /mpeg|mp3/i.test(blob.type) || /\.(mp3|mpeg|mpga)$/i.test(name);
-      async function detectBpm(blob: Blob, name?: string): Promise<number | null> {
-        // MP3 se puede decodificar desde cualquier punto: se toman ~2 MB del medio.
-        // Otros formatos (M4A, WAV, FLAC, OGG) necesitan su cabecera: se decodifican completos (hasta 80 MB).
-        const CHUNK = 2_000_000;
-        let part: Blob;
-        if (isMp3(blob, name)) part = blob.size > CHUNK * 1.5 ? blob.slice(Math.floor(blob.size * 0.4), Math.floor(blob.size * 0.4) + CHUNK) : blob;
-        else if (blob.size <= 80_000_000) part = blob;
-        else return null;
-        const bytes = await part.arrayBuffer();
+      // ---- MP3: encontrar el inicio de un frame real (Safari/iOS no decodifica un pedazo que empieza a mitad de frame) ----
+      const MP3_BR = { 1: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], 2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160] };
+      const MP3_SR: Record<number, number[]> = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
+      // Largo en bytes del frame MPEG Layer III que empieza en i, o 0 si no es una cabecera válida
+      const mp3FrameLen = (u: Uint8Array, i: number) => {
+        if (i + 4 > u.length || u[i] !== 0xff || (u[i + 1] & 0xe0) !== 0xe0) return 0;
+        const ver = (u[i + 1] >> 3) & 3, layer = (u[i + 1] >> 1) & 3;
+        const bri = (u[i + 2] >> 4) & 15, sri = (u[i + 2] >> 2) & 3, pad = (u[i + 2] >> 1) & 1;
+        if (ver === 1 || layer !== 1 || bri === 0 || bri === 15 || sri === 3) return 0;
+        const br = MP3_BR[ver === 3 ? 1 : 2][bri] * 1000, sr = MP3_SR[ver][sri];
+        return Math.floor(((ver === 3 ? 144 : 72) * br) / sr) + pad;
+      };
+      // Primer offset con 3 frames seguidos válidos (evita falsos positivos dentro de los datos)
+      const findMp3Sync = (u: Uint8Array, from = 0) => {
+        for (let i = from; i < u.length - 4; i++) {
+          const l1 = mp3FrameLen(u, i); if (!l1) continue;
+          const l2 = mp3FrameLen(u, i + l1); if (!l2) continue;
+          if (mp3FrameLen(u, i + l1 + l2)) return i;
+        }
+        return -1;
+      };
+      // ¿Es MP3? Se mira el contenido, no el nombre/tipo (en móvil a veces llegan vacíos o como video/mpeg)
+      async function sniffMp3(blob: Blob) {
+        const head = new Uint8Array(await blob.slice(0, 64 * 1024).arrayBuffer());
+        if (head[0] === 0x49 && head[1] === 0x44 && head[2] === 0x33) return true; // etiqueta ID3
+        return findMp3Sync(head) >= 0;
+      }
+      const decode = (bytes: ArrayBuffer) => new Promise<AudioBuffer>((res, rej) => {
         const Ctx = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
-        const audioBuf: AudioBuffer = await new Promise((res, rej) => {
-          const p = new Ctx(1, 1, 44100).decodeAudioData(bytes, res, rej);
-          (p as any)?.catch?.(rej);
-        });
+        if (!Ctx) return rej(new Error('Web Audio no disponible'));
+        // 22050 Hz: la mitad de memoria que 44.1 kHz y de sobra para detectar el bombo
+        const p = new Ctx(1, 1, 22050).decodeAudioData(bytes, res, rej);
+        (p as any)?.catch?.(rej);
+      });
+
+      async function detectBpm(blob: Blob): Promise<number | null> {
+        // Se decodifican como mucho ~2.5 MB (≈2.5 min de MP3): cabe en la memoria de cualquier celular
+        const CHUNK = 2_500_000;
+        let audioBuf: AudioBuffer | null = null;
+        let lastErr: unknown = null;
+        if (await sniffMp3(blob)) {
+          // Intentos: un pedazo del medio (el ritmo suele estar asentado) y, si falla, el inicio del archivo
+          const starts = blob.size > CHUNK * 1.5 ? [Math.floor(blob.size * 0.4), 0] : [0];
+          for (const start of starts) {
+            try {
+              const raw = new Uint8Array(await blob.slice(start, start + CHUNK).arrayBuffer());
+              const sync = start === 0 ? 0 : findMp3Sync(raw);
+              if (sync < 0) throw new Error('No se encontró audio MP3 en el pedazo');
+              audioBuf = await decode(raw.slice(sync).buffer);
+              break;
+            } catch (e) { lastErr = e; }
+          }
+        } else if (blob.size <= 40_000_000) {
+          // M4A/WAV/FLAC/OGG necesitan el archivo completo (cabeceras); hasta 40 MB para no agotar la memoria del celular
+          try { audioBuf = await decode(await blob.arrayBuffer()); } catch (e) { lastErr = e; }
+        } else {
+          throw new Error('Archivo muy grande para analizar en este formato');
+        }
+        if (!audioBuf) throw lastErr ?? new Error('No se pudo leer el audio');
         const sr = audioBuf.sampleRate;
         // Analizar como máximo 120 s (desde el 40% si el audio es más largo)
         const maxLen = Math.floor(sr * 120);
@@ -640,7 +684,7 @@ import '@fontsource-variable/jetbrains-mono/wght.css';
         const len = Math.min(maxLen, audioBuf.length - off);
         const ch0 = audioBuf.getChannelData(0).subarray(off, off + len);
         const ch1 = audioBuf.numberOfChannels > 1 ? audioBuf.getChannelData(1).subarray(off, off + len) : ch0;
-        const hop = 512, fps = sr / hop;
+        const hop = sr >= 44100 ? 512 : 256, fps = sr / hop; // ~86 cuadros/s sea cual sea la frecuencia
         const a = 1 - Math.exp((-2 * Math.PI * 150) / sr); // pasa-bajos ~150 Hz
         let lp = 0;
         const nFrames = Math.floor(ch0.length / hop);
@@ -685,7 +729,7 @@ import '@fontsource-variable/jetbrains-mono/wght.css';
         if (!song || song.bpm || analyzing.has(song)) return;
         analyzing.add(song); paintDeck(d);
         try {
-          const raw = await detectBpm(song.blob, song.name);
+          const raw = await detectBpm(song.blob);
           // La autocorrelación no distingue bien entre mitad/doble: se reporta la octava que cae en 107–180 si existe
           const bpm = raw ? Math.round(([raw, raw * 2, raw / 2].find(inRange) ?? raw) * 10) / 10 : null;
           if (bpm && !song.bpm) {
@@ -693,7 +737,12 @@ import '@fontsource-variable/jetbrains-mono/wght.css';
             dbPut(song).catch(() => {});
             if (d.song === song) toast(`Deck ${d.id.toUpperCase()}: ${bpm} BPM detectado`);
           }
-        } catch { /* formato no decodificable: el deck suena a velocidad normal */ }
+          else if (!raw && d.song === song) toast(`Deck ${d.id.toUpperCase()}: no se encontró un ritmo claro`);
+        } catch (e: any) {
+          // El deck suena a velocidad normal; se muestra el motivo para poder diagnosticar
+          console.warn('[BPM] detección falló', e);
+          if (d.song === song) toast(`Deck ${d.id.toUpperCase()}: no se pudo detectar el BPM (${e?.name && e.name !== 'Error' ? e.name : e?.message || 'error'})`);
+        }
         analyzing.delete(song);
         if (d.song === song) applyTempo();
       }
