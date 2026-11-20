@@ -1,0 +1,990 @@
+---
+import '@fontsource-variable/jetbrains-mono/wght.css';
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Andre's DJ" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Andre's DJ</title>
+    <style is:global>
+      :root {
+        --bg: #0a0a0b; --card: #141416; --glass: #ffffff0d; --glass2: #ffffff17; --line: #ffffff12; --text: #f4f4f5;
+        --muted: #8b8b93; --a: #7ee8b2; --b: #f06aa8; --warn: #f2c35b;
+        --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; overscroll-behavior: none; }
+      button { font: inherit; color: inherit; cursor: pointer; }
+
+      /* ---------- Base ---------- */
+      .aurora { display: none; }
+      main { max-width: 560px; margin: 0 auto; padding: calc(16px + var(--safe-t)) 16px calc(16px + var(--safe-b)); display: grid; gap: 12px; }
+      .mono { font-family: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace; }
+
+      /* ---------- Encabezado ---------- */
+      header { display: flex; align-items: center; gap: 14px; padding: 2px 2px 0; }
+      header h1 { font-size: 22px; margin: 0; flex: 1; font-weight: 700; letter-spacing: -.4px; }
+      header h1 span { color: #8b8b93; font-weight: 600; }
+      .live-ind { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: 2px; color: #8b8b93; }
+      .live-ind i { width: 7px; height: 7px; border-radius: 50%; background: #3a3a40; transition: background .3s, box-shadow .3s; }
+      body.live .live-ind { color: #cfcfd4; }
+      body.live .live-ind i { background: var(--a); box-shadow: 0 0 8px var(--a); animation: pulse 1.6s ease-in-out infinite; }
+      @keyframes pulse { 50% { opacity: .45; } }
+
+      /* ---------- Deck ---------- */
+      .deck { --c: var(--a); position: relative; display: grid; align-content: center; gap: 10px; padding: 16px 16px 16px;
+        border-radius: 22px; background: var(--card); border: 1px solid var(--line); transition: border-color .3s, box-shadow .3s; }
+      .deck.b { --c: var(--b); }
+      .deck { touch-action: manipulation; user-select: none; -webkit-user-select: none; } /* sin zoom ni selección al hacer doble toque */
+      .deck::before { content: ''; position: absolute; top: -1px; left: 6%; right: 6%; height: 1px;
+        background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c) 75%, transparent), transparent); }
+      .deck.playing { border-color: color-mix(in srgb, var(--c) 30%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 10%, transparent), 0 18px 50px -20px color-mix(in srgb, var(--c) 35%, transparent); }
+
+      .deck-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+      .vinyl { position: relative; aspect-ratio: 1; border-radius: 50%; border: 0; padding: 0;
+        background:
+          radial-gradient(circle, #0b0b0c 0 4%, var(--c) 5% 23%, transparent 23.5%),
+          repeating-radial-gradient(circle, #19191c 0 1.5px, #0e0e10 1.5px 3px);
+        box-shadow: 0 0 0 1px #000, 0 0 22px -2px color-mix(in srgb, var(--c) 45%, transparent);
+        animation: spin var(--spin, 1.8s) linear infinite paused; transition: box-shadow .3s; }
+      .vinyl::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 30deg, #fff0, #ffffff10 6%, #fff0 14% 50%, #ffffff0a 56%, #fff0 64%); }
+      .deck.playing .vinyl { animation-play-state: running; box-shadow: 0 0 0 1px #000, 0 0 30px 0 color-mix(in srgb, var(--c) 60%, transparent); }
+      .deck.empty .vinyl { filter: saturate(.8); }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .meta { min-width: 0; display: grid; gap: 4px; }
+      .top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+      .deck-id { flex: none; font-size: 12px; letter-spacing: 3px; color: var(--c); }
+      .bpmtag { font-size: 12px; color: #8b8b93; white-space: nowrap; }
+      .bpmtag b { color: var(--text); font-weight: 500; }
+      .song { min-width: 0; }
+      .song b { display: block; font-size: 17px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .song small { display: block; color: #8b8b93; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+      .shift { font-size: 11px; display: inline-flex; align-items: center; gap: 6px; color: #8b8b93; white-space: nowrap; min-height: 14px; }
+      .shift i { width: 5px; height: 5px; border-radius: 50%; background: #3a3a40; }
+      .shift.ok i { background: var(--a); } .shift.mid i { background: var(--warn); } .shift.bad i { background: var(--b); }
+
+      .prog { position: relative; height: 18px; display: grid; align-items: center; touch-action: none; cursor: pointer; }
+      .prog i { display: block; height: 2px; border-radius: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 70%, transparent) var(--p, 0%), #ffffff14 var(--p, 0%)); }
+      .prog::after { content: ''; position: absolute; top: 50%; left: var(--p, 0%); width: 12px; height: 12px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 1px 4px #0008; }
+      .deck.empty .prog::after { background: #d6d6da; }
+      .time { display: flex; justify-content: space-between; font-size: 12px; color: #8b8b93; font-variant-numeric: tabular-nums; margin-top: -4px; }
+
+      .time { align-items: center; }
+      .skip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 999px; border: 0; background: #1c1c1f; color: #b4b4bb; font-size: 11px; font-family: inherit; }
+      .skip svg { width: 13px; height: 13px; }
+      .skip:active { background: #26262a; color: #fff; }
+      .deck.empty .skip { opacity: .4; }
+      /* Feedback del doble toque (estilo YouTube) */
+      .seek-fx { position: absolute; top: 50%; padding: 8px 14px; border-radius: 999px; background: #000c; color: #fff; font-size: 13px; pointer-events: none; opacity: 0; transform: translate(-50%, -50%) scale(.9); transition: opacity .25s, transform .25s; z-index: 2; }
+      .seek-fx.show { opacity: 1; transform: translate(-50%, -50%) scale(1); transition: none; }
+      .seek-fx.l { left: 25%; } .seek-fx.r { left: 75%; }
+      .controls { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 4px; }
+      .disc { position: relative; flex: none; width: 76px; aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%; background: none; display: grid; place-items: center; }
+      .disc .vinyl { position: absolute; inset: 0; width: 100%; }
+      .disc .pp { position: relative; z-index: 1; width: 40%; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%;
+        background: color-mix(in srgb, var(--c) 85%, #000); color: #0b0b0c; box-shadow: 0 2px 10px #0009, 0 0 0 3px #0b0b0c; transition: transform .1s, background .2s; }
+      .disc .pp svg { width: 50%; height: 50%; }
+      .deck.playing .disc .pp { background: var(--c); }
+      .disc:disabled { cursor: default; }
+      .disc:disabled .pp { background: color-mix(in srgb, var(--c) 35%, #1a1a1d); }
+      .disc:active:not(:disabled) .pp { transform: scale(.9); }
+      .controls .skip { height: 48px; padding: 0 16px; border-radius: 12px; font-size: 14px; gap: 6px; background: #1c1c1f; color: var(--text); }
+      .controls .skip svg { width: 18px; height: 18px; }
+      .load { margin-left: auto; width: 48px; height: 48px; flex: none; display: grid; place-items: center; border-radius: 12px; background: #1c1c1f; color: var(--text); cursor: pointer; }
+      .load svg { width: 20px; height: 20px; }
+      .load input { display: none; }
+      .load:active { background: #26262a; }
+
+      /* ---------- Master BPM ---------- */
+      .center { position: relative; padding: 16px 16px 14px; border-radius: 22px; display: grid; gap: 6px; background: var(--card); border: 1px solid var(--line); }
+      .bpm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .bpm-big { text-align: center; user-select: none; flex: 1; }
+      .bpm-big b { display: block; font-size: 56px; font-weight: 700; letter-spacing: -2px; font-variant-numeric: tabular-nums; line-height: 1; color: #fff; }
+      .bpm-big small { display: block; margin-top: 6px; font-size: 12px; letter-spacing: 4px; color: #8b8b93; }
+      .nudge { width: 48px; height: 48px; flex: none; display: grid; place-items: center; border-radius: 12px; border: 0; background: #1c1c1f; color: var(--text); }
+      .nudge svg { width: 18px; height: 18px; }
+      .nudge:active { background: #26262a; }
+
+      .fader { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; margin: 0; touch-action: pan-y; }
+      .fader::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--a), #9b9ba3 50%, var(--b)); opacity: .9; }
+      .fader::-moz-range-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--a), #9b9ba3 50%, var(--b)); }
+      .fader::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 40px; margin-top: -18.5px; border-radius: 7px;
+        background: linear-gradient(180deg, #e4e4e7 0 47%, #18181b 47% 53%, #e4e4e7 53%); box-shadow: 0 4px 12px #000a; }
+      .fader::-moz-range-thumb { width: 26px; height: 40px; border-radius: 7px; border: 0; background: linear-gradient(180deg, #e4e4e7 0 47%, #18181b 47% 53%, #e4e4e7 53%); }
+      .ticks { display: flex; justify-content: space-between; font-size: 12px; color: #8b8b93; font-variant-numeric: tabular-nums; margin-top: -2px; }
+
+      /* Guía: dónde queda el BPM original de cada deck */
+      .fader-box { position: relative; padding-top: 18px; }
+      .marks { position: absolute; left: 13px; right: 13px; top: 0; bottom: 0; pointer-events: none; }
+      .mark { position: absolute; top: 0; bottom: 6px; width: 0; transform: translateX(-50%); }
+      .mark::after { content: ''; position: absolute; left: -.5px; top: 15px; bottom: 6px; width: 1px; background: var(--c); }
+      .mark em { position: absolute; top: 0; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 10px; color: var(--c); letter-spacing: 1px; }
+      .mark.a { --c: var(--a); } .mark.b { --c: var(--b); }
+      .mark.near em { top: -12px; }
+      .resets { display: flex; gap: 10px; margin-top: 6px; }
+      .reset { --c: var(--a); flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border-radius: 12px; border: 0;
+        background: color-mix(in srgb, var(--c) 7%, #131315); color: color-mix(in srgb, var(--c) 75%, #fff); font-size: 13px; letter-spacing: 1px; transition: background .2s; }
+      .reset.b { --c: var(--b); }
+      .reset svg { width: 15px; height: 15px; }
+      .reset b { font-weight: 500; font-variant-numeric: tabular-nums; }
+      .reset.on { background: color-mix(in srgb, var(--c) 20%, #131315); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+      .reset:disabled { color: color-mix(in srgb, var(--c) 35%, #555); cursor: default; }
+
+      /* ---------- Pantalla completa ---------- */
+      main { min-height: 100vh; min-height: 100dvh; grid-template-rows: auto 1fr auto 1fr; }
+      .deck { align-self: stretch; }
+
+      .icon-btn { position: relative; width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 12px; border: 0; background: #1c1c1f; color: var(--text); }
+      .icon-btn:active { background: #26262a; }
+      .icon-btn.sm { width: 34px; height: 34px; border-radius: 50%; font-size: 14px; }
+      .icon-btn .dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--a); }
+
+      /* Hoja de ajustes */
+      .settings { gap: 14px; max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; }
+      .grab { width: 40px; height: 5px; border-radius: 5px; background: #ffffff33; margin: -8px auto 0; }
+      .grab, .sheet-head { touch-action: none; }
+      .sheet-head { display: flex; align-items: center; justify-content: space-between; }
+      .sheet-head b { font-size: 20px; }
+      .group { border-radius: 18px; background: #ffffff08; border: 1px solid var(--line); overflow: hidden; }
+      .opt { display: flex; align-items: center; gap: 12px; padding: 14px; width: 100%; background: none; border: 0; text-align: left; cursor: pointer; }
+      .opt + .opt { border-top: 1px solid var(--line); }
+      .opt .ico { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 10px; background: #ffffff10; font-size: 17px; }
+      .opt .txt { flex: 1; min-width: 0; }
+      .opt .txt b { display: block; font-size: 15px; }
+      .opt .txt small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; line-height: 1.35; }
+      .opt .chev { color: var(--muted); font-size: 24px; }
+      .switch { -webkit-appearance: none; appearance: none; flex: none; width: 52px; height: 32px; border-radius: 999px; background: #ffffff26; position: relative; cursor: pointer; transition: background .2s; margin: 0; }
+      .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px #0007; transition: transform .2s; }
+      .switch:checked { background: #fff; }
+      .switch:checked::after { transform: translateX(20px); background: #111; }
+      .install-card { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 18px; border: 1px solid var(--line); background: var(--glass); text-align: left; }
+      .install-card[hidden] { display: none; }
+      .install-card img { width: 46px; height: 46px; border-radius: 12px; }
+      .install-card span { flex: 1; min-width: 0; }
+      .install-card b { display: block; font-size: 15px; }
+      .install-card small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+      .install-card em { font-style: normal; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 999px; background: #fff; color: #000; }
+      .danger-soft { background: #ff3d9a14; border: 1px solid #ff3d9a55; color: var(--b); }
+      .ver { margin: 0; text-align: center; font-size: 11px; color: var(--muted); }
+
+      /* Bienvenida */
+      .welcome { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: calc(20px + var(--safe-t)) 22px calc(20px + var(--safe-b)); background: #0b0b0cee; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); overflow-y: auto; animation: fade .35s ease; }
+      .welcome[hidden] { display: none; }
+      @keyframes fade { from { opacity: 0; } }
+      .w-inner { width: 100%; max-width: 400px; display: grid; gap: 14px; justify-items: center; text-align: center; }
+      .w-logo { width: 104px; height: 104px; border-radius: 26px; box-shadow: 0 0 0 1px var(--line), 0 20px 50px #000a; animation: float 4s ease-in-out infinite; }
+      @keyframes float { 50% { transform: translateY(-6px); } }
+      .welcome h2 { margin: 4px 0 0; font-size: 34px; font-weight: 900; letter-spacing: -1px; }
+      .welcome h2 span { color: var(--muted); font-weight: 700; }
+      .w-sub { margin: -8px 0 6px; color: var(--muted); }
+      .w-steps { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 10px; width: 100%; text-align: left; }
+      .w-steps li { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 16px; background: #ffffff0a; border: 1px solid var(--line); }
+      .w-steps i { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 10px; font-style: normal; font-weight: 800; background: #ffffff12; }
+      .w-steps b { display: block; font-size: 14px; }
+      .w-steps small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; line-height: 1.4; }
+      .btn.primary { width: 100%; background: #fff; color: #000; }
+      .btn.ghost { width: 100%; background: none; border: 1px solid var(--line); }
+      .btn[hidden] { display: none; }
+
+      .bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
+      .opts { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); }
+      .opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+      .opts input { width: 18px; height: 18px; accent-color: #fff; }
+      .end { background: #ff3d9a1a; border: 1px solid #ff3d9a88; color: var(--b); }
+      .help { font-size: 12px; color: var(--muted); text-align: center; margin: 0; line-height: 1.5; }
+
+      /* ---------- Bottom sheets con sensación nativa (curva de iOS, igual que Vaul) ---------- */
+      :root { --ios: cubic-bezier(.32, .72, 0, 1); }
+      .modal { position: fixed; inset: 0; display: flex; align-items: flex-end; z-index: 10; visibility: hidden; pointer-events: none; transition: visibility 0s linear .5s; }
+      .modal::before { content: ''; position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity .5s var(--ios); }
+      .modal.show { visibility: visible; pointer-events: auto; transition: none; }
+      .modal.show::before { opacity: calc(.6 * var(--fade, 1)); }
+      .modal.dragging::before { transition: none; }
+      .sheet { position: relative; width: 100%; max-width: 560px; margin: 0 auto; background: #161617; border: 1px solid var(--line); border-bottom: 0; border-radius: 26px 26px 0 0;
+        padding: 20px 16px calc(20px + var(--safe-b)); display: grid; gap: 10px; box-shadow: 0 -10px 40px #0008;
+        transform: translate3d(0, 100%, 0); transition: transform .5s var(--ios); will-change: transform; touch-action: none; }
+      .sheet::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 100vh; background: #161617; } /* fondo al estirar hacia arriba */
+      .modal.show .sheet { transform: translate3d(0, var(--drag, 0px), 0); }
+      .modal.dragging .sheet { transition: none; }
+      .modal:not(.has-grab) .sheet::before { content: ''; width: 40px; height: 5px; border-radius: 5px; background: #ffffff33; margin: -8px auto 2px; }
+
+      /* La app de fondo se achica como en iOS */
+      main, .aurora { transition: transform .5s var(--ios), filter .5s var(--ios), border-radius .5s var(--ios); }
+      body.sheet-open main { transform: scale(calc(1 - .06 * var(--fade, 1))) translateY(calc(10px * var(--fade, 1))); filter: brightness(calc(1 - .35 * var(--fade, 1))); border-radius: 22px; overflow: hidden; }
+      body.sheet-dragging main { transition: none; }
+      .sheet p { margin: 0 0 8px; color: var(--muted); line-height: 1.5; }
+      .steps { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.8; }
+      .steps b { color: var(--text); }
+      .btn { padding: 14px; border-radius: 14px; border: 0; font-weight: 700; font-size: 16px; background: var(--glass2); }
+      .btn.danger { background: var(--b); color: #fff; }
+      .toast { position: fixed; left: 50%; top: calc(14px + var(--safe-t)); transform: translateX(-50%); background: #1f1f21f0; border: 1px solid var(--line); padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; white-space: nowrap; }
+      .toast.show { opacity: 1; }
+
+      /* ---------- Solo vertical en móvil ---------- */
+      .rotate { display: none; position: fixed; inset: 0; z-index: 50; background: var(--bg); place-items: center; text-align: center; padding: 24px; }
+      .rotate div { display: grid; gap: 12px; justify-items: center; color: var(--muted); }
+      .rotate b { font-size: 46px; color: var(--text); display: inline-block; animation: tilt 1.6s ease-in-out infinite; }
+      @keyframes tilt { 0%, 30% { transform: rotate(90deg); } 60%, 100% { transform: rotate(0); } }
+      @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+        .rotate { display: grid; }
+        main { display: none; }
+      }
+
+      /* ---------- Celulares angostos ---------- */
+      @media (max-width: 380px) {
+        main { padding-left: 12px; padding-right: 12px; gap: 10px; }
+        .deck { padding: 14px; }
+        .deck-head { gap: 14px; }
+        .disc { width: 68px; }
+          .controls .skip, .load { height: 44px; }
+        .load { width: 44px; }
+        .bpm-big b { font-size: 50px; }
+        .nudge { width: 44px; height: 44px; }
+      }
+      @media (max-width: 340px) {
+        .disc { width: 56px; }
+        .deck-id { letter-spacing: 2px; }
+          .controls { gap: 6px; }
+        .bpm-big b { font-size: 42px; }
+        .reset { font-size: 12px; gap: 5px; }
+      }
+      /* ---------- Pantallas bajitas (≤ 740px): todo cabe sin scroll ---------- */
+      @media (max-height: 740px) {
+        main { gap: 8px; padding-top: calc(10px + var(--safe-t)); padding-bottom: calc(10px + var(--safe-b)); }
+        header h1 { font-size: 19px; }
+        .icon-btn { width: 34px; height: 34px; }
+        .deck { padding: 12px 14px; gap: 6px; }
+        header { padding-top: 0; }
+        .disc { width: 62px; }
+        .song b { font-size: 15px; }
+        .song small { font-size: 12px; margin-top: 1px; }
+        .meta { gap: 2px; }
+        .prog { height: 14px; }
+        .time { font-size: 11px; margin-top: -2px; }
+        .controls { margin-top: 0; }
+        .controls .skip, .load { height: 40px; }
+        .load { width: 40px; }
+        .center { padding: 12px 14px; gap: 2px; }
+        .bpm-big b { font-size: 42px; }
+        .bpm-big small { margin-top: 4px; font-size: 11px; }
+        .nudge { width: 40px; height: 40px; }
+        .fader { height: 38px; }
+        .fader-box { padding-top: 14px; }
+        .ticks { font-size: 11px; }
+        .resets { margin-top: 6px; }
+        .reset { height: 38px; }
+      }
+      @media (max-height: 600px) {
+        main { gap: 6px; }
+        header h1 { font-size: 17px; }
+        .icon-btn { width: 30px; height: 30px; }
+        .disc { width: 48px; }
+        .song small, .shift { display: none; }
+        .prog { height: 10px; }
+        .controls .skip, .load { height: 36px; }
+        .load { width: 36px; }
+        .bpm-big b { font-size: 34px; }
+        .bpm-big small { margin-top: 2px; font-size: 10px; }
+        .nudge { width: 36px; height: 36px; }
+        .fader { height: 32px; }
+        .ticks { display: none; }
+        .reset { height: 32px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="aurora" aria-hidden="true"></div>
+    <div class="rotate"><div><b>📱</b>Gira el teléfono a vertical</div></div>
+    <main>
+      <header>
+        <h1>Andre's <span>DJ</span></h1>
+        <span class="live-ind mono" aria-live="polite"><i></i>LIVE</span>
+        <button class="icon-btn" id="openSettings" aria-label="Ajustes">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+          <i class="dot" id="settingsDot" hidden></i>
+        </button>
+      </header>
+
+      <div class="deck a empty" id="deck-a">
+        <div class="deck-head">
+          <button class="disc play" data-act="toggle" disabled aria-label="Play/pausa deck A"><span class="vinyl"></span><span class="pp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 4.5v15l12-7.5z"/></svg></span></button>
+          <div class="meta">
+            <div class="top"><span class="deck-id mono">DECK A</span><span class="bpmtag mono" data-f="bpmtag">— bpm</span></div>
+            <div class="song"><b data-f="title">Sin canción</b><small data-f="artist">Carga un archivo</small></div>
+            <span class="shift mono" data-f="shift"><i></i><span>—</span></span>
+          </div>
+        </div>
+        <div class="prog" data-f="prog"><i></i></div>
+        <div class="time mono"><span data-f="cur">0:00</span><span data-f="rem">-0:00</span></div>
+        <span class="seek-fx mono" data-f="fx" aria-hidden="true"></span>
+        <div class="controls">
+          <button class="skip" data-skip="-10" aria-label="Retroceder 10 segundos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4.5h4.5"/></svg>10</button><button class="skip" data-skip="10" aria-label="Adelantar 10 segundos">10<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.5-5.8M20 4v4.5h-4.5"/></svg></button>
+          <label class="load" title="Cargar canción" aria-label="Cargar canción">
+            <input type="file" data-f="file" accept="audio/*,.mp3,.mpeg,.m4a,.wav,.ogg,.aac,.flac" /><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"/></svg>
+          </label>
+        </div>
+        <audio data-f="audio" preload="auto" playsinline></audio>
+      </div>
+
+      <section class="center">
+        <div class="bpm-row">
+          <button class="nudge" id="minus" aria-label="Bajar BPM"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+          <div class="bpm-big" id="bigBpm" title="Doble toque: BPM original del deck que suena"><b id="bpmOut" class="mono">—</b><small class="mono">MASTER BPM</small></div>
+          <button class="nudge" id="plus" aria-label="Subir BPM"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button>
+        </div>
+        <div class="fader-box">
+          <div class="marks" id="marks">
+            <span class="mark a" data-mark="a" hidden><em class="mono">A</em></span>
+            <span class="mark b" data-mark="b" hidden><em class="mono">B</em></span>
+          </div>
+          <input type="range" class="fader" id="fader" min="107" max="180" step="0.1" value="128" aria-label="BPM compartido" />
+        </div>
+        <div class="ticks mono"><span>107</span><span>125</span><span>143</span><span>162</span><span>180</span></div>
+        <div class="resets">
+          <button class="reset a mono" data-reset="a" disabled aria-label="Volver al BPM original del deck A"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4.5h4.5"/></svg>A <b>—</b></button>
+          <button class="reset b mono" data-reset="b" disabled aria-label="Volver al BPM original del deck B"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4.5h4.5"/></svg>B <b>—</b></button>
+        </div>
+      </section>
+
+      <div class="deck b empty" id="deck-b">
+        <div class="deck-head">
+          <button class="disc play" data-act="toggle" disabled aria-label="Play/pausa deck B"><span class="vinyl"></span><span class="pp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 4.5v15l12-7.5z"/></svg></span></button>
+          <div class="meta">
+            <div class="top"><span class="deck-id mono">DECK B</span><span class="bpmtag mono" data-f="bpmtag">— bpm</span></div>
+            <div class="song"><b data-f="title">Sin canción</b><small data-f="artist">Carga un archivo</small></div>
+            <span class="shift mono" data-f="shift"><i></i><span>—</span></span>
+          </div>
+        </div>
+        <div class="prog" data-f="prog"><i></i></div>
+        <div class="time mono"><span data-f="cur">0:00</span><span data-f="rem">-0:00</span></div>
+        <span class="seek-fx mono" data-f="fx" aria-hidden="true"></span>
+        <div class="controls">
+          <button class="skip" data-skip="-10" aria-label="Retroceder 10 segundos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4.5h4.5"/></svg>10</button><button class="skip" data-skip="10" aria-label="Adelantar 10 segundos">10<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.5-5.8M20 4v4.5h-4.5"/></svg></button>
+          <label class="load" title="Cargar canción" aria-label="Cargar canción">
+            <input type="file" data-f="file" accept="audio/*,.mp3,.mpeg,.m4a,.wav,.ogg,.aac,.flac" /><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 14v4.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V14"/></svg>
+          </label>
+        </div>
+        <audio data-f="audio" preload="auto" playsinline></audio>
+      </div>
+
+    </main>
+
+    <!-- Ajustes -->
+    <div class="modal has-grab" id="settings">
+      <div class="sheet settings">
+        <div class="grab"></div>
+        <div class="sheet-head"><b>Ajustes</b><button class="icon-btn sm" data-close aria-label="Cerrar">✕</button></div>
+
+        <button class="install-card" data-install hidden>
+          <img src="/icon-192.png" alt="" />
+          <span><b>Instalar Andre's DJ</b><small>Ábrela desde tu pantalla de inicio, a pantalla completa</small></span>
+          <em>Instalar</em>
+        </button>
+
+        <div class="group">
+          <label class="opt">
+            <span class="ico">🎵</span>
+            <span class="txt"><b>Mantener tono</b><small>Al subir el BPM la voz no se pone aguda</small></span>
+            <input type="checkbox" class="switch" id="lock" checked />
+          </label>
+          <label class="opt" id="wakeRow" hidden>
+            <span class="ico">☀️</span>
+            <span class="txt"><b>Pantalla siempre encendida</b><small>Para pinchar sin que el celular se bloquee</small></span>
+            <input type="checkbox" class="switch" id="wake" />
+          </label>
+        </div>
+
+        <div class="group">
+          <button class="opt link" id="openGuide">
+            <span class="ico">💡</span>
+            <span class="txt"><b>Cómo funciona</b><small>Decks, BPM compartido y cómo saltar 10 s</small></span>
+            <span class="chev">›</span>
+          </button>
+        </div>
+
+        <button class="btn danger-soft" id="end">Terminar sesión</button>
+        <p class="ver">Andre's DJ · las canciones solo se guardan en este celular</p>
+      </div>
+    </div>
+
+    <!-- Bienvenida (primera vez) / guía -->
+    <div class="welcome" id="welcome" hidden>
+      <div class="w-inner">
+        <img class="w-logo" src="/icon-512.png" alt="" />
+        <h2>Andre's <span>DJ</span></h2>
+        <p class="w-sub">Dos decks, un solo BPM.</p>
+        <ol class="w-steps">
+          <li><i>⤒</i><span><b>Carga una canción en cada deck</b><small>Deck A arriba, deck B abajo. El BPM se detecta solo.</small></span></li>
+          <li><i>⇆</i><span><b>Mueve el BPM del centro</b><small>Los dos decks siguen ese BPM. Las marcas A y B muestran el tempo original.</small></span></li>
+          <li><i>▶</i><span><b>Toca el disco para dar play</b><small>Al darle play a uno, el otro se pausa. Doble toque a los lados de un deck salta ±10 s.</small></span></li>
+        </ol>
+        <button class="btn primary" id="startApp">Empezar</button>
+        <button class="btn ghost" data-install hidden>Instalar app</button>
+      </div>
+    </div>
+
+    <div class="modal" id="modal">
+      <div class="sheet">
+        <b>¿Terminar sesión?</b>
+        <p>Se borrarán del dispositivo las canciones cargadas en los dos decks.</p>
+        <button class="btn danger" id="confirmEnd">Sí, borrar todo</button>
+        <button class="btn" id="cancelEnd">Cancelar</button>
+      </div>
+    </div>
+    <div class="modal" id="iosModal">
+      <div class="sheet">
+        <b>Instalar Andre's DJ</b>
+        <ol class="steps">
+          <li>Toca <b>Compartir</b> <span aria-hidden="true">⬆︎</span> en la barra de Safari</li>
+          <li>Elige <b>Agregar a pantalla de inicio</b></li>
+          <li>Toca <b>Agregar</b></li>
+        </ol>
+        <button class="btn" id="iosClose">Entendido</button>
+      </div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      type DeckId = 'a' | 'b';
+      type Song = { id: DeckId; title: string; artist: string; bpm: number | null; blob: Blob; name?: string };
+      type Deck = {
+        id: DeckId; el: HTMLElement; audio: HTMLAudioElement; song: Song | null; url: string | null;
+        f: (name: string) => HTMLElement;
+      };
+
+      const PLAY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 4.5v15l12-7.5z"/></svg>';
+      const PAUSE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8.5 5v14M15.5 5v14"/></svg>';
+      const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+      const fader = $<HTMLInputElement>('fader');
+      let toastTimer: number | undefined;
+      const toast = (msg: string) => {
+        const t = $('toast'); t.textContent = msg; t.classList.add('show');
+        clearTimeout(toastTimer); toastTimer = window.setTimeout(() => t.classList.remove('show'), 2200);
+      };
+      const fmt = (t: number) => (isFinite(t) && t >= 0 ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '0:00');
+      const ls = {
+        get: (k: string, d: any) => { try { return JSON.parse(localStorage.getItem(k)!) ?? d; } catch { return d; } },
+        set: (k: string, v: any) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+      };
+
+      // ---------- Nombres de archivo ----------
+      const JUNK = /\b(forhub|klickaud|soundcloud|to\s*mp3|mp3\s*download|y2mate|savefrom|ytmp3|official\s*(video|audio)|lyrics?|hq|320\s*kbps)\b|\((official[^)]*|audio|video|lyric[^)]*)\)/gi;
+      const tidy = (t: string) => (t || '').replace(/_/g, ' ').replace(JUNK, ' ').replace(/\s*-\s*$/, '').replace(/\s+/g, ' ').trim();
+      const parseName = (file: string) => {
+        const base = tidy(file.replace(/(\.[a-z0-9]{2,4})+$/i, ''));
+        const m = base.match(/\[(\d{2,3}(?:\.\d+)?)\]|(\d{2,3}(?:\.\d+)?)\s*bpm/i);
+        const clean = base.replace(/\[\d+(?:\.\d+)?\]|\d+(?:\.\d+)?\s*bpm/gi, '').replace(/\s+/g, ' ').trim();
+        const sep = clean.indexOf(' - ');
+        const [artist, title] = sep > 0 ? [clean.slice(0, sep), clean.slice(sep + 3)] : ['', clean];
+        return { title, artist, bpm: m ? Number(m[1] ?? m[2]) : null };
+      };
+
+      // ---------- IndexedDB: una canción por deck (ids 'a' y 'b') ----------
+      const STORE = 'session';
+      let dbPromise: Promise<IDBDatabase> | null = null;
+      const openDb = () => (dbPromise ??= new Promise<IDBDatabase>((res, rej) => {
+        const r = indexedDB.open('bpm-player', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'id' });
+        r.onsuccess = () => { r.result.onclose = () => (dbPromise = null); res(r.result); };
+        r.onerror = () => { dbPromise = null; rej(r.error); };
+      }));
+      const tx = async <T,>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>) => {
+        const db = await openDb();
+        return new Promise<T>((res, rej) => {
+          const req = fn(db.transaction(STORE, mode).objectStore(STORE));
+          req.onsuccess = () => res(req.result);
+          req.onerror = () => rej(req.error);
+        });
+      };
+      const dbAll = () => tx<any[]>('readonly', (s) => s.getAll());
+      const dbPut = (song: Song) => tx('readwrite', (s) => s.put(song));
+      const dbDel = (id: string) => tx('readwrite', (s) => s.delete(id));
+      const dbClear = () => tx('readwrite', (s) => s.clear());
+
+      // ---------- Tempo compartido ----------
+      // velocidad de cada deck = BPM compartido / BPM base del deck.
+      // BPM base = el real si llega a 107–180 con ≤16% de ajuste; si no, su doble o mitad (como Rekordbox/Serato).
+      const MIN_BPM = 107, MAX_BPM = 180;
+      const clampBpm = (b: number) => Math.min(MAX_BPM, Math.max(MIN_BPM, b));
+      const distToRange = (b: number) => (b < MIN_BPM ? Math.log(MIN_BPM / b) : b > MAX_BPM ? Math.log(b / MAX_BPM) : 0);
+      const inRange = (b: number) => b >= MIN_BPM && b <= MAX_BPM;
+      // BPM base: 1) el original o su doble/mitad si cae en 107–180 (así "Original" = velocidad 1.0)
+      // 2) si ninguno cae (ej. 95: 47.5/95/190), el original si está a ≤16%, o el candidato más cercano.
+      const baseBpm = (orig: number) => {
+        const inside = [orig, orig * 2, orig / 2].find(inRange);
+        if (inside) return inside;
+        if (distToRange(orig) <= Math.log(1.16)) return orig;
+        return [orig * 2, orig / 2].reduce((best, c) => (distToRange(c) < distToRange(best) ? c : best), orig);
+      };
+      let shared: number | null = ls.get('sharedBpm', null);
+
+      // ---------- Decks ----------
+      const mkDeck = (id: DeckId): Deck => {
+        const el = $(`deck-${id}`);
+        return { id, el, audio: el.querySelector('audio')!, song: null, url: null, f: (n) => el.querySelector(`[data-f="${n}"]`) as HTMLElement };
+      };
+      const decks: Record<DeckId, Deck> = { a: mkDeck('a'), b: mkDeck('b') };
+      const other = (d: Deck) => (d.id === 'a' ? decks.b : decks.a);
+      const playingDeck = () => (Object.values(decks).find((d) => !d.audio.paused) ?? null);
+      let lastActive: Deck | null = null;
+
+      function rateOf(d: Deck) {
+        if (!d.song?.bpm || !shared) return 1;
+        return shared / baseBpm(d.song.bpm);
+      }
+
+      function paintDeck(d: Deck) {
+        const s = d.song;
+        d.el.classList.toggle('empty', !s);
+        d.f('title').textContent = s ? s.title : 'Sin canción';
+        d.f('artist').textContent = s ? (s.artist || 'Sin artista') : 'Carga un archivo';
+        d.f('bpmtag').innerHTML = s?.bpm ? `<b>${s.bpm}</b> bpm` : '— bpm';
+        (d.el.querySelector('.play') as HTMLButtonElement).disabled = !s;
+        const sh = d.f('shift');
+        const label = sh.querySelector('span')!;
+        if (!s) { sh.className = 'shift'; label.textContent = '—'; return; }
+        if (!s.bpm) { sh.className = 'shift'; label.textContent = analyzing.has(s) ? 'Detectando BPM…' : 'BPM no detectado'; return; }
+        const base = baseBpm(s.bpm);
+        const pct = (rateOf(d) - 1) * 100;
+        const a = Math.abs(pct);
+        sh.className = 'shift ' + (a <= 8 ? 'ok' : a <= 16 ? 'mid' : 'bad');
+        sh.title = a <= 8 ? 'Natural' : a <= 16 ? 'Se nota un poco' : 'Puede sonar distorsionado';
+        label.textContent = `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%${base !== s.bpm ? (base > s.bpm ? ' ·×2' : ' ·÷2') : ''}`;
+      }
+
+      function applyTempo() {
+        const anyBpm = Object.values(decks).find((d) => d.song?.bpm);
+        if (shared == null) shared = anyBpm ? baseBpm(anyBpm.song!.bpm!) : 128;
+        shared = Math.round(clampBpm(shared) * 10) / 10;
+        fader.disabled = false;
+        fader.value = String(shared);
+        ls.set('sharedBpm', shared);
+        $('bpmOut').textContent = shared.toFixed(1);
+        paintGuide();
+        for (const d of Object.values(decks)) {
+          const r = rateOf(d);
+          d.audio.playbackRate = r;
+          d.el.style.setProperty('--spin', `${(1.8 / r).toFixed(3)}s`);
+          paintDeck(d);
+        }
+        syncMediaSession();
+      }
+      const setShared = (bpm: number) => { shared = bpm; applyTempo(); };
+
+      // ---------- Guía de originales (marcas A/B sobre el fader + botones de volver) ----------
+      const posPct = (bpm: number) => ((clampBpm(bpm) - MIN_BPM) / (MAX_BPM - MIN_BPM)) * 100;
+      function paintGuide() {
+        const bases: Partial<Record<DeckId, number>> = {};
+        for (const d of Object.values(decks)) {
+          const mark = document.querySelector<HTMLElement>(`[data-mark="${d.id}"]`)!;
+          const btn = document.querySelector<HTMLButtonElement>(`[data-reset="${d.id}"]`)!;
+          const raw = d.song?.bpm ? baseBpm(d.song.bpm) : null;
+          const base = raw ? Math.round(clampBpm(raw) * 10) / 10 : null;
+          const reachable = !!raw && inRange(raw);
+          mark.hidden = !base; btn.disabled = !base;
+          btn.querySelector('b')!.textContent = base ? `${reachable ? '' : '≈'}${base.toFixed(1)}` : '—';
+          btn.title = base && !reachable ? `El original (${raw!.toFixed(1)}) está fuera de 107–180; este es el punto más cercano` : '';
+          btn.classList.toggle('on', !!base && shared === base);
+          if (base) { mark.style.left = `${posPct(base)}%`; bases[d.id] = base; }
+        }
+        const near = bases.a != null && bases.b != null && Math.abs(posPct(bases.a) - posPct(bases.b)) < 7;
+        document.querySelector('[data-mark="b"]')!.classList.toggle('near', near);
+      }
+      document.querySelectorAll<HTMLButtonElement>('[data-reset]').forEach((b) => b.addEventListener('click', () => {
+        const d = decks[b.dataset.reset as DeckId];
+        if (d.song?.bpm) { setShared(baseBpm(d.song.bpm)); navigator.vibrate?.(15); }
+      }));
+      // Imán: al arrastrar cerca (±0.8 BPM) del original de un deck, se pega a él
+      const snap = (bpm: number) => {
+        for (const d of Object.values(decks)) {
+          if (!d.song?.bpm) continue;
+          const base = Math.round(clampBpm(baseBpm(d.song.bpm)) * 10) / 10;
+          if (Math.abs(bpm - base) <= 0.8) { if (shared !== base) navigator.vibrate?.(10); return base; }
+        }
+        return bpm;
+      };
+
+      // ---------- Detección automática de BPM ----------
+      // Decodifica ~2 MB del medio del archivo (≈2 min a 128 kbps; no se carga el mix completo en memoria),
+      // saca la envolvente de golpes de graves (bombo) y busca la periodicidad con autocorrelación.
+      const analyzing = new WeakSet<Song>();
+      const isMp3 = (blob: Blob, name = '') => /mpeg|mp3/i.test(blob.type) || /\.(mp3|mpeg|mpga)$/i.test(name);
+      async function detectBpm(blob: Blob, name?: string): Promise<number | null> {
+        // MP3 se puede decodificar desde cualquier punto: se toman ~2 MB del medio.
+        // Otros formatos (M4A, WAV, FLAC, OGG) necesitan su cabecera: se decodifican completos (hasta 80 MB).
+        const CHUNK = 2_000_000;
+        let part: Blob;
+        if (isMp3(blob, name)) part = blob.size > CHUNK * 1.5 ? blob.slice(Math.floor(blob.size * 0.4), Math.floor(blob.size * 0.4) + CHUNK) : blob;
+        else if (blob.size <= 80_000_000) part = blob;
+        else return null;
+        const bytes = await part.arrayBuffer();
+        const Ctx = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+        const audioBuf: AudioBuffer = await new Promise((res, rej) => {
+          const p = new Ctx(1, 1, 44100).decodeAudioData(bytes, res, rej);
+          (p as any)?.catch?.(rej);
+        });
+        const sr = audioBuf.sampleRate;
+        // Analizar como máximo 120 s (desde el 40% si el audio es más largo)
+        const maxLen = Math.floor(sr * 120);
+        const off = audioBuf.length > maxLen ? Math.floor(audioBuf.length * 0.4) : 0;
+        const len = Math.min(maxLen, audioBuf.length - off);
+        const ch0 = audioBuf.getChannelData(0).subarray(off, off + len);
+        const ch1 = audioBuf.numberOfChannels > 1 ? audioBuf.getChannelData(1).subarray(off, off + len) : ch0;
+        const hop = 512, fps = sr / hop;
+        const a = 1 - Math.exp((-2 * Math.PI * 150) / sr); // pasa-bajos ~150 Hz
+        let lp = 0;
+        const nFrames = Math.floor(ch0.length / hop);
+        const low = new Float32Array(nFrames), full = new Float32Array(nFrames);
+        for (let f = 0; f < nFrames; f++) {
+          let el = 0, ef = 0;
+          for (let i = f * hop, e = i + hop; i < e; i++) {
+            const x = (ch0[i] + ch1[i]) * 0.5;
+            lp += a * (x - lp);
+            el += lp * lp; ef += x * x;
+          }
+          low[f] = Math.log1p(el * 1000); full[f] = Math.log1p(ef * 100);
+        }
+        // Flujo de energía (solo subidas) = probabilidad de golpe
+        const onset = new Float32Array(nFrames);
+        let mean = 0;
+        for (let f = 1; f < nFrames; f++) { onset[f] = Math.max(0, low[f] - low[f - 1]) + 0.5 * Math.max(0, full[f] - full[f - 1]); mean += onset[f]; }
+        mean /= nFrames;
+        for (let f = 0; f < nFrames; f++) onset[f] = Math.max(0, onset[f] - mean);
+        // Autocorrelación entre 60 y 200 BPM con preferencia suave alrededor de 120
+        const ac = (lag: number) => { let sum = 0; for (let i = lag; i < nFrames; i++) sum += onset[i] * onset[i - lag]; return sum / (nFrames - lag); };
+        const minLag = Math.floor((60 * fps) / 200), maxLag = Math.ceil((60 * fps) / 60);
+        const acs: number[] = [];
+        if (2 * maxLag + 1 >= nFrames) return null; // muy poco audio
+        for (let l = 0; l <= 2 * maxLag + 1; l++) acs[l] = l >= minLag - 1 ? ac(l) : 0; // incluye 2·lag para el armónico
+        let best = -1, bestScore = -Infinity;
+        for (let l = minLag; l <= maxLag; l++) {
+          const bpm = (60 * fps) / l;
+          const w = Math.exp(-0.5 * Math.pow(Math.log2(bpm / 120) / 0.9, 2));
+          const score = (acs[l] + 0.5 * acs[2 * l]) * w;
+          if (score > bestScore) { bestScore = score; best = l; }
+        }
+        if (best < 0 || bestScore <= 0) return null;
+        // Interpolación parabólica para precisión decimal
+        const y0 = acs[best - 1], y1 = acs[best], y2 = acs[best + 1];
+        const den = y0 - 2 * y1 + y2;
+        const lag = best + (den ? (0.5 * (y0 - y2)) / den : 0);
+        return Math.round(((60 * fps) / lag) * 10) / 10;
+      }
+      async function autoBpm(d: Deck) {
+        const song = d.song;
+        if (!song || song.bpm || analyzing.has(song)) return;
+        analyzing.add(song); paintDeck(d);
+        try {
+          const raw = await detectBpm(song.blob, song.name);
+          // La autocorrelación no distingue bien entre mitad/doble: se reporta la octava que cae en 107–180 si existe
+          const bpm = raw ? Math.round(([raw, raw * 2, raw / 2].find(inRange) ?? raw) * 10) / 10 : null;
+          if (bpm && !song.bpm) {
+            song.bpm = bpm;
+            dbPut(song).catch(() => {});
+            if (d.song === song) toast(`Deck ${d.id.toUpperCase()}: ${bpm} BPM detectado`);
+          }
+        } catch { /* formato no decodificable: el deck suena a velocidad normal */ }
+        analyzing.delete(song);
+        if (d.song === song) applyTempo();
+      }
+
+      function setSong(d: Deck, song: Song | null) {
+        d.audio.pause();
+        if (d.url) { URL.revokeObjectURL(d.url); d.url = null; }
+        d.song = song;
+        if (song) { d.url = URL.createObjectURL(song.blob); d.audio.src = d.url; }
+        else { d.audio.removeAttribute('src'); d.audio.load(); }
+        d.f('cur').textContent = '0:00'; d.f('rem').textContent = '-0:00';
+        d.f('prog').style.setProperty('--p', '0%');
+        applyTempo();
+      }
+
+      async function toggle(d: Deck) {
+        if (!d.song) return;
+        if (d.audio.paused) {
+          other(d).audio.pause(); // solo suena un deck a la vez
+          d.audio.playbackRate = rateOf(d);
+          try { await d.audio.play(); } catch {}
+        } else d.audio.pause();
+      }
+
+      for (const d of Object.values(decks)) {
+        const { audio } = d;
+        d.el.querySelectorAll('[data-act="toggle"]').forEach((b) => b.addEventListener('click', () => toggle(d)));
+
+        // Cargar archivo (reemplaza la canción del deck)
+        const file = d.f('file') as HTMLInputElement;
+        file.addEventListener('change', async () => {
+          const f = file.files?.[0];
+          file.value = '';
+          if (!f) return;
+          const song: Song = { id: d.id, name: f.name, blob: f, ...parseName(f.name) };
+          setSong(d, song);
+          if (!song.bpm) autoBpm(d);
+          try { await dbPut(song); navigator.storage?.persist?.(); toast(`Deck ${d.id.toUpperCase()} cargado`); }
+          catch { toast('Suena, pero no se pudo guardar en el celular'); }
+        });
+
+        // Estado visual
+        const sync = () => {
+          d.el.classList.toggle('playing', !audio.paused);
+          (d.el.querySelector('.play .pp') as HTMLElement).innerHTML = audio.paused ? PLAY_ICON : PAUSE_ICON;
+        };
+        const live = () => document.body.classList.toggle('live', !!playingDeck());
+        audio.addEventListener('play', () => { lastActive = d; sync(); live(); syncMediaSession(); });
+        audio.addEventListener('pause', () => { sync(); live(); syncMediaSession(); });
+        audio.addEventListener('ended', sync);
+        audio.addEventListener('loadedmetadata', () => { audio.playbackRate = rateOf(d); tick(); });
+        const tick = () => {
+          const dur = audio.duration;
+          d.f('cur').textContent = fmt(audio.currentTime);
+          d.f('rem').textContent = `-${fmt((dur || 0) - audio.currentTime)}`;
+          if (!scrubbing) d.f('prog').style.setProperty('--p', dur ? `${(audio.currentTime / dur) * 100}%` : '0%');
+        };
+        audio.addEventListener('timeupdate', tick);
+
+        // Barra de progreso: tocar o arrastrar para moverse
+        const prog = d.f('prog');
+        let scrubbing = false;
+        const at = (e: PointerEvent) => { const r = prog.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+        prog.addEventListener('pointerdown', (e) => { if (!audio.duration) return; scrubbing = true; prog.setPointerCapture(e.pointerId); prog.style.setProperty('--p', `${at(e) * 100}%`); });
+        prog.addEventListener('pointermove', (e) => { if (scrubbing) prog.style.setProperty('--p', `${at(e) * 100}%`); });
+        prog.addEventListener('pointerup', (e) => { if (!scrubbing) return; scrubbing = false; audio.currentTime = at(e) * audio.duration; });
+        prog.addEventListener('pointercancel', () => { scrubbing = false; tick(); });
+
+        // Adelantar / retroceder 10 s: botones y doble toque a la izquierda/derecha de la tarjeta
+        let fxTimer: number | undefined, fxSum = 0, fxDir = 0;
+        const skip = (secs: number) => {
+          if (!d.song || !audio.duration) return;
+          audio.currentTime = Math.min(audio.duration - 0.25, Math.max(0, audio.currentTime + secs));
+          tick();
+          const fx = d.f('fx');
+          fxSum = Math.sign(secs) === fxDir ? fxSum + secs : secs; fxDir = Math.sign(secs);
+          fx.textContent = `${fxSum > 0 ? '+' : '−'}${Math.abs(fxSum)} s`;
+          fx.className = `seek-fx mono show ${secs < 0 ? 'l' : 'r'}`;
+          clearTimeout(fxTimer);
+          fxTimer = window.setTimeout(() => { fx.classList.remove('show'); fxSum = 0; fxDir = 0; }, 650);
+          navigator.vibrate?.(6);
+        };
+        d.el.querySelectorAll<HTMLButtonElement>('[data-skip]').forEach((b) => b.addEventListener('click', () => skip(+b.dataset.skip!)));
+        let lastUp = 0, lastX = 0;
+        d.el.addEventListener('pointerup', (e) => {
+          if ((e.target as HTMLElement).closest('button, input, label, .prog')) return; // no en controles
+          const now = e.timeStamp;
+          const r = d.el.getBoundingClientRect();
+          const side = e.clientX - r.left < r.width / 2 ? -10 : 10;
+          if (now - lastUp < 320 && Math.abs(e.clientX - lastX) < 60) { skip(side); lastUp = now - 160; } // toques seguidos acumulan
+          else lastUp = now;
+          lastX = e.clientX;
+        });
+
+      }
+
+      // ---------- Controles del BPM compartido ----------
+      fader.addEventListener('input', () => setShared(snap(+fader.value)));
+      const nudge = (dir: number) => setShared((shared ?? 128) + dir * 0.5);
+      for (const [id, dir] of [['plus', 1], ['minus', -1]] as const) {
+        const b = $(id);
+        let timer: number | undefined, rep: number | undefined;
+        const end = () => { clearTimeout(timer); clearInterval(rep); };
+        b.addEventListener('pointerdown', (e) => {
+          e.preventDefault(); nudge(dir); navigator.vibrate?.(8);
+          timer = window.setTimeout(() => (rep = window.setInterval(() => nudge(dir), 80)), 400);
+        });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, end));
+      }
+      // Doble toque en el número: vuelve al BPM original del deck que suena (o el último usado)
+      let lastTap = 0;
+      $('bigBpm').addEventListener('click', () => {
+        const now = Date.now();
+        const d = playingDeck() ?? lastActive;
+        if (now - lastTap < 350 && d?.song?.bpm) { setShared(baseBpm(d.song.bpm)); navigator.vibrate?.(15); toast(`BPM original del deck ${d.id.toUpperCase()}`); }
+        lastTap = now;
+      });
+
+      // ---------- Mantener tono ----------
+      const lock = $<HTMLInputElement>('lock');
+      const applyLock = () => Object.values(decks).forEach(({ audio }) => { audio.preservesPitch = lock.checked; (audio as any).webkitPreservesPitch = lock.checked; });
+      lock.onchange = applyLock;
+      applyLock();
+
+      // ---------- Terminar sesión ----------
+      $('end').onclick = () => { closeSheet('settings'); setTimeout(() => openSheet('modal'), 180); };
+      $('cancelEnd').onclick = () => closeSheet('modal');
+      $('confirmEnd').onclick = async () => {
+        await dbClear();
+        setSong(decks.a, null); setSong(decks.b, null);
+        shared = null; localStorage.removeItem('sharedBpm');
+        applyTempo();
+        closeSheet('modal');
+        toast('Sesión terminada. Todo borrado.');
+      };
+
+      // ---------- Pantalla bloqueada: controles del sistema ----------
+      function syncMediaSession() {
+        if (!('mediaSession' in navigator)) return;
+        const ms = navigator.mediaSession;
+        const d = playingDeck() ?? lastActive;
+        ms.playbackState = playingDeck() ? 'playing' : 'paused';
+        if (!d?.song) return;
+        ms.metadata = new MediaMetadata({
+          title: d.song.title, artist: `Deck ${d.id.toUpperCase()}${shared ? ` · ${shared.toFixed(1)} BPM` : ''}`, album: "Andre's DJ",
+          artwork: [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' }],
+        });
+        if (d.audio.duration && isFinite(d.audio.duration)) {
+          try { ms.setPositionState({ duration: d.audio.duration, position: Math.min(d.audio.currentTime, d.audio.duration), playbackRate: d.audio.playbackRate || 1 }); } catch {}
+        }
+      }
+      if ('mediaSession' in navigator) {
+        const cur = () => playingDeck() ?? lastActive ?? (decks.a.song ? decks.a : decks.b);
+        const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
+          ['play', () => { const d = cur(); if (d?.audio.paused) toggle(d); }],
+          ['pause', () => playingDeck()?.audio.pause()],
+          ['nexttrack', () => { const d = cur(); if (d && other(d).song) toggle(other(d)); }],     // cambia al otro deck
+          ['previoustrack', () => { const d = cur(); if (d && other(d).song) toggle(other(d)); }],
+          ['seekbackward', (e) => { const d = cur(); if (d) d.audio.currentTime -= e.seekOffset ?? 10; }],
+          ['seekforward', (e) => { const d = cur(); if (d) d.audio.currentTime += e.seekOffset ?? 10; }],
+          ['seekto', (e) => { const d = cur(); if (d && e.seekTime != null) d.audio.currentTime = e.seekTime; }],
+        ];
+        for (const [a, h] of handlers) { try { navigator.mediaSession.setActionHandler(a, h); } catch {} }
+      }
+
+      // Mantener pantalla encendida (Wake Lock)
+      const wake = $<HTMLInputElement>('wake');
+      let wakeLock: any = null;
+      if ('wakeLock' in navigator) {
+        $('wakeRow').hidden = false;
+        wake.checked = ls.get('wake', false);
+        const requestWake = async () => {
+          if (!wake.checked || document.visibilityState !== 'visible') return;
+          try { wakeLock = await (navigator as any).wakeLock.request('screen'); } catch {}
+        };
+        wake.onchange = async () => { ls.set('wake', wake.checked); if (wake.checked) requestWake(); else { await wakeLock?.release(); wakeLock = null; } };
+        document.addEventListener('visibilitychange', requestWake);
+        requestWake();
+      }
+
+      // ---------- Ajustes (hoja) ----------
+      function openSheet(id: string) {
+        const m = $(id);
+        m.style.removeProperty('--drag'); m.style.removeProperty('--fade'); document.body.style.removeProperty('--fade');
+        m.classList.add('show'); document.body.classList.add('sheet-open');
+        navigator.vibrate?.(6);
+      }
+      function closeSheet(id: string) {
+        const m = $(id);
+        m.style.removeProperty('--drag'); m.style.removeProperty('--fade'); document.body.style.removeProperty('--fade');
+        m.classList.remove('show');
+        if (!document.querySelector('.modal.show')) document.body.classList.remove('sheet-open');
+      }
+      // Arrastrar para cerrar: se sigue el dedo, se cierra por distancia (>25%) o por velocidad (swipe rápido)
+      document.querySelectorAll<HTMLElement>('.modal').forEach((m) => {
+        const sheet = m.querySelector<HTMLElement>('.sheet')!;
+        m.addEventListener('click', (e) => { if (e.target === m) closeSheet(m.id); }); // tocar afuera
+        let startY = 0, lastY = 0, lastT = 0, vel = 0, dragging = false, pending = false, h = 1;
+        const set = (dy: number) => {
+          const y = dy < 0 ? -Math.pow(-dy, 0.6) : dy; // hacia arriba cede poco (elástico)
+          m.style.setProperty('--drag', `${y}px`);
+          const fade = Math.max(0, 1 - Math.max(0, dy) / h);
+          m.style.setProperty('--fade', String(fade)); document.body.style.setProperty('--fade', String(fade));
+        };
+        // Si el contenido no cabe (pantallas muy bajitas), se permite scroll y se arrastra desde la cabecera
+        const fit = () => { sheet.style.touchAction = sheet.scrollHeight > sheet.clientHeight + 1 ? 'pan-y' : 'none'; };
+        new MutationObserver(fit).observe(m, { attributes: true, attributeFilter: ['class'] });
+        sheet.addEventListener('pointerdown', (e) => {
+          if (e.button > 0) return;
+          // si el contenido está desplazado, primero se hace scroll normal
+          if (sheet.scrollTop > 0) return;
+          startY = lastY = e.clientY; lastT = e.timeStamp; vel = 0; pending = true; h = sheet.offsetHeight;
+        });
+        sheet.addEventListener('pointermove', (e) => {
+          if (!pending && !dragging) return;
+          const dy = e.clientY - startY;
+          if (pending) {
+            if (Math.abs(dy) < 6) return;            // umbral: un toque no es arrastre
+            pending = false; dragging = true;
+            sheet.setPointerCapture(e.pointerId);
+            m.classList.add('dragging'); document.body.classList.add('sheet-dragging');
+          }
+          const dt = Math.max(1, e.timeStamp - lastT);
+          vel = 0.8 * ((e.clientY - lastY) / dt) + 0.2 * vel; // px/ms suavizado
+          lastY = e.clientY; lastT = e.timeStamp;
+          set(dy);
+        });
+        const end = (e: PointerEvent) => {
+          pending = false;
+          if (!dragging) return;
+          dragging = false;
+          m.classList.remove('dragging'); document.body.classList.remove('sheet-dragging');
+          const dy = e.clientY - startY;
+          if (dy > h * 0.25 || vel > 0.45) { navigator.vibrate?.(4); closeSheet(m.id); }
+          else { m.style.removeProperty('--drag'); m.style.removeProperty('--fade'); document.body.style.removeProperty('--fade'); }
+        };
+        sheet.addEventListener('pointerup', end);
+        sheet.addEventListener('pointercancel', end);
+      });
+      $('openSettings').onclick = () => openSheet('settings');
+      $('settings').addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('[data-close]')) closeSheet('settings'); });
+
+      // ---------- Bienvenida ----------
+      const welcome = $('welcome');
+      if (!ls.get('welcomed', false)) welcome.hidden = false;
+      $('startApp').onclick = () => { welcome.hidden = true; ls.set('welcomed', true); };
+      $('openGuide').onclick = () => { closeSheet('settings'); welcome.hidden = false; };
+
+      // ---------- Instalar ----------
+      const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      let installEvt: any = null;
+      const installEls = [...document.querySelectorAll<HTMLElement>('[data-install]')];
+      const showInstall = (on: boolean) => { installEls.forEach((el) => (el.hidden = !on)); $('settingsDot').hidden = !on; };
+      if (!standalone) {
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; showInstall(true); });
+        if (isIos) showInstall(true);
+      }
+      installEls.forEach((el) => el.addEventListener('click', async () => {
+        if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice; installEvt = null; if (r?.outcome === 'accepted') showInstall(false); }
+        else if (isIos) { closeSheet('settings'); openSheet('iosModal'); }
+      }));
+      $('iosClose').onclick = () => closeSheet('iosModal');
+      window.addEventListener('appinstalled', () => { showInstall(false); toast("Andre's DJ instalada"); });
+      if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+      // ---------- Solo vertical (Android instalada; en iOS/navegador se muestra aviso por CSS) ----------
+      const lockPortrait = () => (screen.orientation as any)?.lock?.('portrait').catch(() => {});
+      lockPortrait();
+      document.addEventListener('fullscreenchange', lockPortrait);
+
+      // ---------- Inicio: recuperar decks guardados ----------
+      // Migra canciones de la versión anterior (lista) a los decks A y B.
+      (async () => {
+        try {
+          let rows = await dbAll();
+          const legacy = rows.filter((r) => r.id !== 'a' && r.id !== 'b').sort((x, y) => (x.addedAt ?? 0) - (y.addedAt ?? 0));
+          for (const r of legacy) {
+            const free = (['a', 'b'] as DeckId[]).find((id) => !rows.some((x) => x.id === id));
+            await dbDel(r.id);
+            if (free) { const moved = { ...r, id: free }; delete moved.addedAt; await dbPut(moved); rows.push(moved); }
+          }
+          rows = rows.filter((r) => r.id === 'a' || r.id === 'b');
+          for (const r of rows) {
+            const d = decks[r.id as DeckId];
+            setSong(d, { ...r, title: tidy(r.title), artist: tidy(r.artist) });
+            if (!r.bpm) autoBpm(d);
+          }
+        } catch { toast('En este navegador las canciones no quedan guardadas'); }
+        applyTempo();
+      })();
+    </script>
+  </body>
+</html>
