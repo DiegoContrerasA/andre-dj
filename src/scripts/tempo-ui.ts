@@ -57,28 +57,34 @@ function paintGuide() {
 let saveTimer: number | undefined;
 const spinOf = new WeakMap<Deck, string>();
 
-export function applyTempo() {
+/**
+ * live = false: solo se pinta (número, marcas, %) y la música sigue a la velocidad que tenía.
+ * Se usa mientras se arrastra el fader o se mantiene +/−; al soltar se llama con live = true.
+ */
+export function applyTempo(live = true) {
   const withBpm = allDecks().find((d) => d.song?.bpm);
   if (state.shared == null) state.shared = withBpm ? baseBpm(withBpm.song!.bpm!) : 128;
   const shared = (state.shared = round1(clampBpm(state.shared)));
   fader.disabled = false;
   fader.value = String(shared);
-  // Guardar en localStorage es síncrono: se espera a que el fader se detenga
-  clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => ls.set('sharedBpm', state.shared), 400);
   $('bpmOut').textContent = shared.toFixed(1);
   paintGuide();
   for (const d of allDecks()) {
+    paintDeck(d);
+    if (!live) continue;
     const r = rateOf(d);
     setRate(d, r);
     const spin = `${(1.8 / r).toFixed(2)}s`;
     if (spinOf.get(d) !== spin) { spinOf.set(d, spin); d.el.style.setProperty('--spin', spin); }
-    paintDeck(d);
   }
-  syncMediaSessionSoon(); // la pantalla bloqueada se actualiza al soltar, no en cada paso del fader
+  if (!live) return;
+  // Guardar en localStorage es síncrono: se espera un poco por si hay otro cambio enseguida
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => ls.set('sharedBpm', state.shared), 400);
+  syncMediaSessionSoon();
 }
 
-export const setShared = (bpm: number) => { state.shared = bpm; applyTempo(); };
+export const setShared = (bpm: number, live = true) => { state.shared = bpm; applyTempo(live); };
 
 /** Vuelve al BPM original del deck */
 const resetTo = (d: Deck | null, msg?: string) => {
@@ -101,21 +107,34 @@ const snap = (bpm: number) => {
 };
 
 export function setupMasterControls() {
-  // Un cambio de velocidad por cuadro como máximo, aunque el navegador mande más eventos input
-  let raf = 0;
+  // Fader: mientras se arrastra solo cambia lo que se ve (un repintado por cuadro como máximo);
+  // la velocidad de la música cambia una sola vez, al soltar.
+  let raf = 0, dragging = false;
   fader.addEventListener('input', () => {
-    if (!raf) raf = requestAnimationFrame(() => { raf = 0; setShared(snap(+fader.value)); });
+    dragging = true;
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (dragging) setShared(snap(+fader.value), false); });
   });
+  const commit = () => {
+    if (!dragging) return;
+    dragging = false;
+    cancelAnimationFrame(raf); raf = 0;
+    setShared(snap(+fader.value), true);
+  };
+  // 'change' es el "soltar" del range; touchend/pointerup por si algún navegador no lo manda
+  ['change', 'touchend', 'touchcancel', 'pointerup', 'pointercancel'].forEach((ev) => fader.addEventListener(ev, commit));
 
-  // Botones − / +: un toque mueve 0.5; mantener presionado repite
-  const nudge = (dir: number) => setShared((state.shared ?? 128) + dir * 0.5);
+  // Botones − / +: un toque aplica al instante; mantener presionado repite y aplica al soltar
+  const nudge = (dir: number, live: boolean) => setShared((state.shared ?? 128) + dir * 0.5, live);
   for (const [id, dir] of [['plus', 1], ['minus', -1]] as const) {
     const b = $(id);
     let timer: number | undefined, rep: number | undefined;
-    const end = () => { clearTimeout(timer); clearInterval(rep); };
+    const end = () => {
+      clearTimeout(timer);
+      if (rep != null) { clearInterval(rep); rep = undefined; applyTempo(true); }
+    };
     b.addEventListener('pointerdown', (e) => {
-      e.preventDefault(); nudge(dir); vibrate(8);
-      timer = window.setTimeout(() => (rep = window.setInterval(() => nudge(dir), 80)), 400);
+      e.preventDefault(); nudge(dir, true); vibrate(8);
+      timer = window.setTimeout(() => (rep = window.setInterval(() => nudge(dir, false), 80)), 400);
     });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, end));
   }

@@ -21,8 +21,10 @@ const precache = () => ({
         }
       };
       walk(root);
+      // /lab (y Tone.js, que solo usa esa página) no se guardan para uso sin internet
+      const labOnly = (f) => f.startsWith('/lab/') || (f.endsWith('.js') && fs.readFileSync(path.join(root, f), 'utf8').includes('GrainPlayer'));
       const urls = files
-        .filter((f) => f !== '/sw.js' && !f.endsWith('.map'))
+        .filter((f) => f !== '/sw.js' && !f.endsWith('.map') && !labOnly(f))
         .map((f) => (f === '/index.html' ? '/' : f))
         .sort();
       const hash = crypto.createHash('sha256');
